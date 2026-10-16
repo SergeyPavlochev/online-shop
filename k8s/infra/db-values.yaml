@@ -1,0 +1,18 @@
+auth:
+  enablePostgresUser: true
+  database: "postgres"
+  existingSecret: "postgresql-secret"
+  secretKeys:
+    adminPasswordKey: "postgres-password"
+architecture: standalone
+primary:
+  persistence:
+    enabled: false
+    size: 250Mi
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi

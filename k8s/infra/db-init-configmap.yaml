@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: db-init-script
+  namespace: infra
+data:
+  init.sql: |
+    CREATE DATABASE auth_db;
+    CREATE DATABASE billing_db;
+    CREATE DATABASE order_db;
+    CREATE DATABASE notification_db;
+    CREATE DATABASE delivery_db;
+    CREATE DATABASE warehouse_db;    
+    CREATE DATABASE kitchen_db;
+    CREATE DATABASE catalog_db;
+    CREATE DATABASE keycloak_db;

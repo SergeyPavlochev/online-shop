@@ -1,0 +1,66 @@
+services:
+  auth-service:
+    image: leokot/auth-service:${VERSION:-1.2.0}
+    build:
+      context: .
+      dockerfile: ./auth-service/Dockerfile
+      args:
+        SERVICE_NAME: auth-service
+      tags:
+        - "leokot/auth-service:${VERSION:-1.2.0}"
+        - "leokot/auth-service:latest"
+
+  billing-service:
+    image: leokot/billing-service:${VERSION:-1.2.0}
+    build:
+      context: .
+      dockerfile: ./billing-service/Dockerfile
+      args:
+        SERVICE_NAME: billing-service
+      tags:
+        - "leokot/billing-service:${VERSION:-1.2.0}"
+        - "leokot/billing-service:latest"
+
+  warehouse-service:
+    image: leokot/warehouse-service:${VERSION:-1.2.0}
+    build:
+      context: .
+      dockerfile: ./warehouse-service/Dockerfile
+      args:
+        SERVICE_NAME: warehouse-service
+      tags:
+        - "leokot/warehouse-service:${VERSION:-1.2.0}"
+        - "leokot/warehouse-service:latest"
+
+  delivery-service:
+    image: leokot/delivery-service:${VERSION:-1.2.0}
+    build:
+      context: .
+      dockerfile: ./delivery-service/Dockerfile
+      args:
+        SERVICE_NAME: delivery-service
+      tags:
+        - "leokot/delivery-service:${VERSION:-1.2.0}"
+        - "leokot/delivery-service:latest"
+
+  notification-service:
+    image: leokot/notification-service:${VERSION:-1.2.0}
+    build:
+      context: .
+      dockerfile: ./notification-service/Dockerfile
+      args:
+        SERVICE_NAME: notification-service
+      tags:
+        - "leokot/notification-service:${VERSION:-1.2.0}"
+        - "leokot/notification-service:latest"
+
+  order-service:
+    image: leokot/order-service:${VERSION:-1.2.0}
+    build:
+      context: .
+      dockerfile: ./order-service/Dockerfile
+      args:
+        SERVICE_NAME: order-service
+      tags:
+        - "leokot/order-service:${VERSION:-1.2.0}"
+        - "leokot/order-service:latest"

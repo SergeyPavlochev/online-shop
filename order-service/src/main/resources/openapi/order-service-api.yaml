@@ -1,0 +1,175 @@
+openapi: 3.0.3
+info:
+  title: Order Service API
+  version: 1.0.0
+
+paths:
+  /api/v1/orders:
+    post:
+      tags:
+        - Orders
+      operationId: createOrder
+      summary: Создание заказа
+      description: Создает заказ, запускает Сагу для выполнения заказа
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequestDto'
+      responses:
+        '202':
+          description: Заказ успешно создан, запущена Сага
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDto'
+        '400':
+          description: Некорректный запрос
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+
+        '500':
+          description: Непредвиденная ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+              example:
+                {
+                  "code": 500,
+                  "message": "StackOverflowError"
+                }
+  /api/v1/orders/{id}:
+    get:
+      tags:
+        - Orders
+      operationId: getOrder
+      summary: Получить заказ
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Получен заказ пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDto'
+        '400':
+          description: Некорректный запрос
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '404':
+          description: Заказ не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+              example:
+                {
+                  "code": 404,
+                  "message": "Order not found"
+                }
+        '500':
+          description: Непредвиденная ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+              example:
+                {
+                  "code": 500,
+                  "message": "StackOverflowError"
+                }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ErrorResponseDto:
+      type: object
+      description: Стандартный формат ответа при возникновении ошибки
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: "Числовой код ошибки (например, HTTP статус или внутренний код)"
+          example: 400
+        message:
+          type: string
+          description: Человеко-читаемое описание ошибки
+          example: "Не передан обязательный заголовок X-User-Id"
+    CreateOrderRequestDto:
+      type: object
+      required:
+        - amount
+        - currency
+        - itemSku
+        - quantity
+        - deliverySlot
+      properties:
+        amount:
+          type: string
+          description: Стоимость заказа
+          example: 2300
+        currency:
+          type: string
+          description: Валюта заказа
+          example: RUB
+        itemSku:
+          type: string
+          format: uuid
+          description: Артикул товара
+          example: "c9b9a01e-a32d-4249-9383-89597f1d93f4"
+        quantity:
+          type: integer
+          format: int32
+          description: Количество
+          example: 2
+        deliverySlot:
+          type: string
+          format: uuid
+          description: Идентификатор слота доставки заказа
+          example: "25A9343D-1F74-4488-9B71-8B8BB1A5CE84"
+    OrderDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Идентификатор заказа
+        userId:
+          type: string
+          format: uuid
+          description: Код пользователя
+        amount:
+          type: string
+          description: Стоимость заказа
+          example: 5400
+        currency:
+          type: string
+          description: Код валюты
+          example: RUB
+        status:
+          type: string
+          enum: [PENDING, CONFIRMED, CANCELLED]
+          description: Статус заказа
+          example: PAID
+        createdAt:
+          type: string
+          format: date-time
+          description: Дата и время создания заказа

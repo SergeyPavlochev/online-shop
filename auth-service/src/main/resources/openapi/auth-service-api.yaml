@@ -1,0 +1,130 @@
+openapi: 3.0.3
+info:
+  title: Auth Service API
+  description: Сервис аутентификации и авторизации для snack-bar
+  version: 1.0.0
+servers:
+  - url: /
+
+paths:
+  /api/auth/register:
+    post:
+      operationId: register
+      summary: Регистрация нового пользователя
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '200':
+          description: Пользователь успешно зарегистрирован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Ошибка валидации или пользователь уже существует
+        '500':
+          description: Внутренняя ошибка сервера
+
+  /api/auth/login:
+    post:
+      operationId: login
+      summary: Вход пользователя
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Успешный вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Неверный email или пароль
+        '500':
+          description: Внутренняя ошибка сервера
+
+  /api/auth/validate:
+    get:
+      operationId: validate
+      summary: Проверка JWT токена
+      tags:
+        - Auth
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Bearer токен для проверки
+      responses:
+        '200':
+          description: Токен валиден
+        '401':
+          description: Токен невалиден
+
+components:
+  schemas:
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+        - firstName
+        - lastName
+        - phone
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email пользователя
+        password:
+          type: string
+          format: password
+          description: Пароль пользователя
+        firstName:
+          type: string
+          description: Имя пользователя
+        lastName:
+          type: string
+          description: Фамилия пользователя
+        phone:
+          type: string
+          description: Номер телефона
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email пользователя
+        password:
+          type: string
+          format: password
+          description: Пароль пользователя
+
+    AuthResponse:
+      type: object
+      properties:
+        userId:
+          type: integer
+          format: int64
+          description: ID пользователя
+        jwt:
+          type: string
+          description: JWT токен

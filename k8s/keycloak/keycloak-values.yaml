@@ -1,0 +1,57 @@
+image:
+  repository: quay.io/keycloak/keycloak
+  tag: "26.0.7"
+
+command:
+  - "/opt/keycloak/bin/kc.sh"
+  - "start"
+  - "--http-enabled=true"
+  - "--proxy-headers=xforwarded"
+  - "--cache=local"
+
+keycloak:
+  username: admin
+  password: admin
+
+extraEnv: |
+  # Учетные данные начального администратора
+  - name: KC_BOOTSTRAP_ADMIN_USERNAME
+    value: "admin"
+  - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+    value: "admin"
+  - name: KC_DB
+    value: "postgres"
+  - name: KC_DB_URL
+    value: "jdbc:postgresql://postgresql.infra.svc.cluster.local:5432/keycloak_db"
+  - name: KC_DB_USERNAME
+    value: "postgres"
+  - name: KC_DB_PASSWORD
+    value: "postgres"
+  - name: KC_HOSTNAME
+    value: "auth.arch.homework"
+  - name: KC_HOSTNAME_STRICT
+    value: "false"
+  - name: KC_HOSTNAME_STRICT_HTTPS
+    value: "false"
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+ingress:
+  enabled: true
+  className: "traefik"
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+  rules:
+    - host: auth.arch.homework
+      paths:
+        - path: /
+          pathType: Prefix
+
+test:
+  enabled: false

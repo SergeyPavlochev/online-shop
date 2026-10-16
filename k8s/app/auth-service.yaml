@@ -1,0 +1,135 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: auth-secrets
+  namespace: app
+type: Opaque
+stringData:
+  keycloakAdminClientSecret: "6nVT3DyODGgjR60UNV6UmlwGTRWXw7F2"
+  keycloakAppClientSecret: "3GYX3yX0YA68hc10P20qphpf4hKwzPEH"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auth-config
+  namespace: app
+data:
+  SERVER_PORT: "8080"
+  SPRING_APPLICATION_NAME: "auth-service"
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://postgresql.infra.svc.cluster.local:5432/auth_db"
+  SPRING_DATASOURCE_USERNAME: "postgres"
+  SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "10"
+  SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: "5"
+  SPRING_DATASOURCE_HIKARI_CONNECTION_TIMEOUT: "30000"
+  SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: "org.hibernate.dialect.PostgreSQLDialect"
+  SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL: "true"
+  SPRING_JPA_HIBERNATE_DDL_AUTO: "none"
+  SPRING_JPA_SHOW_SQL: "false"
+  SPRING_LIQUIBASE_ENABLED: "true"
+  SPRING_LIQUIBASE_CHANGE_LOG: "classpath:db/changelog/db.changelog-master.yaml"
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: "kafka.infra.svc.cluster.local:9092"
+  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info,metrics,prometheus"
+  MANAGEMENT_ENDPOINTS_WEB_BASE_PATH: "/actuator"
+  MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: "always"
+  MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: "true"
+  MANAGEMENT_SERVER_PORT: "8081"
+  MANAGEMENT_METRICS_DISTRIBUTION_SLO_HTTP_SERVER_REQUESTS: "1ms, 2ms, 3ms, 4ms, 5ms, 6ms, 7ms, 8ms, 9ms, 10ms, 20ms, 50ms, 100ms, 150ms, 200ms, 500ms"
+  MANAGEMENT_METRICS_TAGS_APPLICATION: "auth-service"
+  KEYCLOAK_AUTH_SERVER_URL: "http://keycloak-keycloakx-http.keycloak.svc.cluster.local:80/auth"
+  KEYCLOAK_REALM: "snackbar"
+  KEYCLOAK_JWKS_URI: "http://keycloak-keycloakx-http.keycloak.svc.cluster.local:80/auth/realms/snackbar/protocol/openid-connect/certs"
+  KEYCLOAK_ADMIN_CLIENT_ID: "snackbar-admin"
+  KEYCLOAK_ADMIN_CLIENT_SECRET: "${KEYCLOAK_ADMIN_CLIENT_SECRET}"
+  KEYCLOAK_APP_CLIENT_ID: "snackbar-app"
+  KEYCLOAK_APP_CLIENT_SECRET: "${KEYCLOAK_APP_CLIENT_SECRET}"
+  APP_KAFKA_TOPIC_OUTBOX: "users"
+  APP_KAFKA_TOPIC_BATCH_SIZE: "50"
+  APP_OUTBOX_SCHEDULE_CRON: "*/10 * * * * *"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-deployment
+  namespace: app
+  labels:
+    app: auth-service
+spec:
+  replicas: 1
+  minReadySeconds: 10
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: auth-service
+  template:
+    metadata:
+      labels:
+        app: auth-service
+    spec:
+      containers:
+        - name: auth-container
+          image: leokot/auth-service:1.2.0
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8081
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8081
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          envFrom:
+            - configMapRef:
+                name: auth-config
+          env:
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: postgres-password
+            - name: KEYCLOAK_ADMIN_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: auth-secrets
+                  key: keycloakAdminClientSecret
+            - name: KEYCLOAK_APP_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: auth-secrets
+                  key: keycloakAppClientSecret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-svc
+  namespace: app
+  labels:
+    app: auth-service
+    efk: snackbar
+spec:
+  selector:
+    app: auth-service
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+    - name: metrics
+      port: 9090
+      targetPort: 8081
+      protocol: TCP

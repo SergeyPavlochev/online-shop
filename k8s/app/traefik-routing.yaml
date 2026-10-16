@@ -1,0 +1,146 @@
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: auth-middleware
+  namespace: app
+spec:
+  forwardAuth:
+    address: http://auth-svc.app.svc.cluster.local:80/validate
+    authResponseHeaders:
+      - Authorization
+      - X-Correlation-Id
+    trustForwardHeader: true
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-auth-prefix
+  namespace: app
+spec:
+  stripPrefix:
+    prefixes:
+      - /auth
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-billing-prefix
+  namespace: app
+spec:
+  stripPrefix:
+    prefixes:
+      - /billing
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-orders-prefix
+  namespace: app
+spec:
+  stripPrefix:
+    prefixes:
+      - /orders
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-notifications-prefix
+  namespace: app
+spec:
+  stripPrefix:
+    prefixes:
+      - /notifications
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-delivery-prefix
+  namespace: app
+spec:
+  stripPrefix:
+    prefixes:
+      - /delivery
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-warehouse-prefix
+  namespace: app
+spec:
+  stripPrefix:
+    prefixes:
+      - /warehouse
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: snackbar-router
+  namespace: app
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`arch.homework`) && PathPrefix(`/auth`)
+      kind: Rule
+      middlewares:
+        - name: strip-auth-prefix
+          namespace: app
+      services:
+        - name: auth-svc
+          namespace: app
+          port: 80
+    - match: Host(`arch.homework`) && PathPrefix(`/billing/api/v1/accounts`)
+      kind: Rule
+      middlewares:
+        - name: auth-middleware
+          namespace: app
+        - name: strip-billing-prefix
+          namespace: app
+      services:
+        - name: billing-svc
+          namespace: app
+          port: 80
+    - match: Host(`arch.homework`) && PathPrefix(`/orders`)
+      kind: Rule
+      middlewares:
+        - name: auth-middleware
+          namespace: app
+        - name: strip-orders-prefix
+          namespace: app
+      services:
+        - name: order-svc
+          namespace: app
+          port: 80
+    - match: Host(`arch.homework`) && PathPrefix(`/notifications`)
+      kind: Rule
+      middlewares:
+        - name: auth-middleware
+          namespace: app
+        - name: strip-notifications-prefix
+          namespace: app
+      services:
+        - name: notification-svc
+          namespace: app
+          port: 80
+    - match: Host(`arch.homework`) && PathPrefix(`/delivery`)
+      kind: Rule
+      middlewares:
+        - name: auth-middleware
+          namespace: app
+        - name: strip-delivery-prefix
+          namespace: app
+      services:
+        - name: delivery-svc
+          namespace: app
+          port: 80
+    - match: Host(`arch.homework`) && PathPrefix(`/warehouse`)
+      kind: Rule
+      middlewares:
+        - name: auth-middleware
+          namespace: app
+        - name: strip-warehouse-prefix
+          namespace: app
+      services:
+        - name: warehouse-svc
+          namespace: app
+          port: 80

@@ -1,0 +1,28 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kafka-init-topics
+  namespace: infra
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: kafka-init
+          image: confluentinc/cp-kafka:7.5.0
+          command:
+            - sh
+            - -c
+            - |
+              kafka-topics --bootstrap-server kafka.infra.svc.cluster.local:9092 --create --if-not-exists --topic users \
+                --partitions 3 --replication-factor 1
+              kafka-topics --bootstrap-server kafka.infra.svc.cluster.local:9092 --create --if-not-exists --topic orders \
+                --partitions 3 --replication-factor 1
+              kafka-topics --bootstrap-server kafka.infra.svc.cluster.local:9092 --create --if-not-exists --topic payments \
+                --partitions 3 --replication-factor 1              
+              kafka-topics --bootstrap-server kafka.infra.svc.cluster.local:9092 --create --if-not-exists --topic users-dlt \
+                --config retention.ms=604800000 --partitions 3 --replication-factor 1
+              kafka-topics --bootstrap-server kafka.infra.svc.cluster.local:9092 --create --if-not-exists --topic orders-dlt \
+                --config retention.ms=604800000 --partitions 3 --replication-factor 1
+              kafka-topics --bootstrap-server kafka.infra.svc.cluster.local:9092 --create --if-not-exists --topic payments-dlt \
+                --config retention.ms=604800000 --partitions 3 --replication-factor 1

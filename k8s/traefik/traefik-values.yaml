@@ -1,0 +1,4 @@
+additionalArguments:
+  - "--accesslog"
+  - "--accesslog.format=json"
+  - "--log.level=DEBUG"

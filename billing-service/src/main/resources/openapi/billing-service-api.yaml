@@ -1,0 +1,258 @@
+openapi: 3.0.3
+info:
+  title: Billing Service API
+  version: 1.0.0
+
+paths:
+  /api/v1/accounts/{accountId}/deposit:
+    post:
+      tags:
+        - UserAccount
+      operationId: depositAccount
+      summary: Пополнение счёта
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DepositRequestDto'
+      responses:
+        200:
+          description: Счёт пополнен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountDto'
+        404:
+          description: Счет не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        400:
+          description: Некорректный запрос
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+  /api/v1/accounts:
+    get:
+      tags:
+        - UserAccount
+      operationId: getAccount
+      summary: Получить счёт
+      responses:
+        200:
+          description: Успешное получение счета пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountDto'
+        404:
+          description: Счет не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        400:
+          description: Некорректный запрос
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+  /api/v1/payments/reserve:
+    post:
+      tags:
+        - Payments
+      operationId: reserve
+      summary: Зарезервировать деньги со счета по заказу
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentReserveRequestDto'
+      responses:
+        200:
+          description: Деньги на счете зарезервированы
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentReserveResponseDto'
+        404:
+          description: Счет не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        400:
+          description: Некорректный запрос
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+  /api/v1/payments/confirm:
+    post:
+      tags:
+        - Payments
+      operationId: confirm
+      summary: Подтвердить списание денег со счета по заказу
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentConfirmRequestDto'
+      responses:
+        200:
+          description: Успешное списание денег со счета
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentConfirmResponseDto'
+        404:
+          description: Счет не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        400:
+          description: Некорректный запрос
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+  /api/v1/payments/cancel:
+    post:
+      tags:
+        - Payments
+      operationId: cancel
+      summary: Отменить резерв денег на счету
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentCancelRequestDto'
+      responses:
+        200:
+          description: Успешная отмена резерва
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentCancelResponseDto'
+        404:
+          description: Счет не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        400:
+          description: Некорректный запрос
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+
+components:
+  schemas:
+    ErrorResponseDto:
+      type: object
+      description: Стандартный формат ответа при возникновении ошибки
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Числовой код ошибки (например, HTTP статус или внутренний код)
+          example: 400
+        message:
+          type: string
+          description: Человеко-читаемое описание ошибки
+          example: "Неверный формат электронной почты"
+    DepositRequestDto:
+      type: object
+      required:
+        - amount
+        - currency
+      properties:
+        amount:
+          type: string
+          example: "100.50"
+        currency:
+          type: string
+          example: "RUB"
+    AccountDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        balance:
+          type: string
+        currency:
+          type: string
+    PaymentReserveRequestDto:
+      type: object
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        amount:
+          type: number
+        currency:
+          type: string
+      required:
+        - orderId
+        - userId
+        - amount
+        - currency
+    PaymentReserveResponseDto:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    PaymentConfirmRequestDto:
+      type: object
+      properties:
+        orderId:
+          type: string
+          format: uuid
+      required:
+        - orderId
+    PaymentConfirmResponseDto:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    PaymentCancelRequestDto:
+      type: object
+      properties:
+        orderId:
+          type: string
+          format: uuid
+      required:
+        - orderId
+    PaymentCancelResponseDto:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status

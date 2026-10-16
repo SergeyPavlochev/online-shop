@@ -1,0 +1,107 @@
+openapi: 3.0.3
+info:
+  title: Notification Service API
+  version: 1.0.0
+
+paths:
+  /api/v1/notifications:
+    get:
+      tags:
+        - Notifications
+      operationId: getUserNotifications
+      summary: Ограниченный список уведомлений текущего пользователя
+      description:
+        Метод возвращает список уведомлений пользователя, ограниченный в соответствии
+        с переданным параметром limit. Если у пользователя нет уведомлений, то метод
+        возвращает код статуса 404.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Список уведомлений пользователя успешно получен
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NotificationDto'
+        400:
+          description: Некорректный запрос
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        404:
+          description: Уведомления не найдены
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+              example:
+                {
+                  "code": 404,
+                  "message": "Не найдены уведомления пользователя"
+                }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ErrorResponseDto:
+      type: object
+      description: Стандартный формат ответа при возникновении ошибки
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Числовой код ошибки (например, HTTP статус или внутренний код)
+          example: 400
+        message:
+          type: string
+          description: Человеко-читаемое описание ошибки
+          example: "Не передан обязательный заголовок X-User-Id"
+    NotificationDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Идентификатор уведомления
+        userId:
+          type: string
+          format: uuid
+          description: Код пользователя
+        type:
+          type: string
+          enum:
+            - ORDER_PAID
+            - ORDER_FAILED
+            - ORDER_CONFIRMED
+            - ORDER_CANCELLED
+          description: Тип события по заказу пользователя - успешная оплата или ошибка
+          example: ORDER_PAID
+        orderId:
+          type: string
+          format: uuid
+          description: Идентификатор заказа
+        amount:
+          type: string
+          description: Стоимость заказа
+          example: 1505.65
+        message:
+          type: string
+          description: Сообщение, переданное пользователю в уведомлении
+          example: 'Заказ успешно оплачен'
+        createdAt:
+          type: string
+          format: date-time
+          description: Дата и время уведомления

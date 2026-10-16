@@ -1,0 +1,41 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-init-job
+  namespace: infra
+spec:
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 5
+  template:
+    metadata:
+      labels:
+        app: db-init
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: psql-init
+          image: registry-1.docker.io/bitnami/postgresql:latest
+          command:
+            - sh
+            - -c
+            - |
+              echo "Ждем когда PostgreSQL будет готов в работе..."              
+              until pg_isready -h postgresql.infra.svc.cluster.local -p 5432 -U postgres; do
+                echo "PostgreSQL пока недоступен - подождать 2 сек"
+                sleep 2
+              done
+              echo "PostgreSQL готов к работе - выполнить script"
+              PGPASSWORD=$POSTGRES_PASSWORD psql -h postgresql.infra.svc.cluster.local -p 5432 -U postgres -f /scripts/init.sql
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secret
+                  key: postgres-password
+          volumeMounts:
+            - name: init-script
+              mountPath: /scripts
+      volumes:
+        - name: init-script
+          configMap:
+            name: db-init-script

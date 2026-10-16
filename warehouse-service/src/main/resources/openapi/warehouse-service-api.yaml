@@ -1,0 +1,220 @@
+openapi: 3.0.3
+info:
+  title: Warehouse Service API
+  version: 1.0.0
+
+paths:
+  /api/v1/items:
+    post:
+      tags:
+        - Items
+      operationId: createItem
+      summary: Создать товар
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateItemRequestDto'
+      responses:
+        '201':
+          description: Создан товар
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemDto'
+        '400':
+          description: Некорректный запрос
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '409':
+          description: Товар уже существует
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+  /api/v1/items/{id}:
+    get:
+      tags:
+        - Items
+      operationId: getItem
+      summary: Получить карточку товара по идентификатору
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Товар найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemDto'
+        '404':
+          description: Не удалось найти товар
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+  /api/v1/stock/reserve:
+    post:
+      tags:
+        - ItemsStock
+      operationId: reserve
+      summary: Зарезервировать товар
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockReserveRequestDto'
+      responses:
+        '200':
+          description: Товар зарезервирован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockReserveResponseDto'
+        '400':
+          description: Некорректный запрос
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '500':
+          description: Непредвиденная ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+              example:
+                {
+                  "code": 500,
+                  "message": "StackOverflowError"
+                }
+  /api/v1/stock/cancel:
+    post:
+      tags:
+        - ItemsStock
+      operationId: cancel
+      summary: Снять резерв на товар
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockCancelRequestDto'
+      responses:
+        '200':
+          description: Резерв снят
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockCancelResponseDto'
+        '400':
+          description: Некорректный запрос
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '500':
+          description: Непредвиденная ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+              example:
+                {
+                  "code": 500,
+                  "message": "StackOverflowError"
+                }
+
+components:
+  schemas:
+    ErrorResponseDto:
+      type: object
+      description: Стандартный формат ответа при возникновении ошибки
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: "Числовой код ошибки (например, HTTP статус или внутренний код)"
+          example: 400
+        message:
+          type: string
+          description: Человеко-читаемое описание ошибки
+          example: "Некорректный тип параметра"
+    CreateItemRequestDto:
+      type: object
+      properties:
+        itemSku:
+          type: string
+        quantity:
+          type: integer
+          format: int32
+          minimum: 1
+      required:
+        - itemSku
+        - quantity
+    ItemDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sku:
+          type: string
+        quantity:
+          type: integer
+          format: int32
+          minimum: 1
+        reservedQuantity:
+          type: integer
+          format: int32
+      required:
+        - id
+        - sku
+        - quantity
+        - reservedQuantity
+    StockReserveRequestDto:
+      type: object
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        itemSku:
+          type: string
+        quantity:
+          type: integer
+          format: int32
+      required:
+        - orderId
+        - itemSku
+        - quantity
+    StockReserveResponseDto:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    StockCancelRequestDto:
+      type: object
+      properties:
+        orderId:
+          type: string
+          format: uuid
+      required:
+        - orderId
+    StockCancelResponseDto:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status

@@ -1,0 +1,79 @@
+syntax = "proto3";
+package snackbar.events.v1;
+
+option java_package = "ru.spavlochev.snackbar.events.v1";
+option java_multiple_files = true;
+
+import "google/protobuf/timestamp.proto";
+
+message EventEnvelope {
+  string                event_id = 1;
+  string                event_type = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  string                correlation_id = 4;
+  string                source = 5;
+
+  oneof payload {
+    UserRegisteredEvent       user_registered = 10;
+    OrderCompletedEvent       order_completed = 11;
+    OrderCancelledEvent       order_cancelled = 12;
+    OrderCreatedEvent         order_created = 13;
+    OrderPaymentCompletedEvent order_payment_completed = 14;
+    OrderPaymentFailedEvent   order_payment_failed = 15;
+    UserAccountCreatedEvent   user_account_created = 16;
+    UserAccountDepositedEvent user_account_deposited = 17;
+  }
+}
+
+message UserRegisteredEvent {
+  string user_id = 1;
+  string email = 2;
+}
+
+message OrderCompletedEvent {
+  string order_id = 1;
+  string user_id = 2;
+  Money  amount = 3;
+}
+
+message OrderCancelledEvent {
+  string order_id = 1;
+  string user_id = 2;
+  Money  amount = 3;
+  string reason = 4;
+}
+
+message OrderCreatedEvent {
+  string order_id = 1;
+  string user_id = 2;
+  Money  amount = 3;
+}
+
+message Money {
+  string currency = 1;
+  string amount = 2;
+}
+
+message OrderPaymentCompletedEvent {
+  string order_id = 1;
+  string user_id = 2;
+  Money  amount = 3;
+}
+
+message OrderPaymentFailedEvent {
+  string order_id = 1;
+  string user_id = 2;
+  Money  amount = 3;
+  string reason = 4;
+}
+
+message UserAccountCreatedEvent {
+  string user_id = 1;
+  string account_id = 2;
+}
+
+message UserAccountDepositedEvent {
+  string user_id = 1;
+  string account_id = 2;
+  Money  amount = 3;
+}

@@ -1,0 +1,262 @@
+openapi: 3.0.3
+info:
+  title: Delivery Service API
+  version: 1.0.0
+
+paths:
+  /api/v1/delivery/slots:
+    get:
+      tags:
+        - Delivery
+      operationId: getAvailableSlots
+      summary: Получить список доступных слотов для доставки
+      parameters:
+        - name: zone
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: datetime
+      responses:
+        '200':
+          description: Список слотов успешно получен
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AvailableSlotDto'
+        '400':
+          description: Некорректный запрос
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+  /api/v1/delivery/reserve:
+    post:
+      tags:
+        - Delivery
+      operationId: reserve
+      summary: Зарезервировать доставку заказа
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeliveryReserveRequestDto'
+      responses:
+        '200':
+          description: Доставка в выбранный слот успешно зарезервирована
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeliveryReserveResponseDto'
+  /api/v1/delivery/cancel:
+    post:
+      tags:
+        - Delivery
+      operationId: cancel
+      summary: Снять резерв доставки заказа
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeliveryCancelRequestDto'
+      responses:
+        '200':
+          description: Резерв успешно снят
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeliveryCancelResponseDto'
+  /api/v1/couriers:
+    post:
+      tags:
+        - Courier
+      operationId: createCourierProfile
+      summary: Создать карточку курьеру
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCourierRequestDto'
+      responses:
+        '201':
+          description: Карточка курьера создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourierDto'
+  /api/v1/delivery-slots:
+    post:
+      tags:
+        - DeliverySlot
+      operationId: create
+      summary: Создать слот доставки
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDeliverySlotRequestDto'
+      responses:
+        '201':
+          description: Слот доставки создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeliverySlotDto'
+
+components:
+  schemas:
+    ErrorResponseDto:
+      type: object
+      description: Стандартный формат ответа при возникновении ошибки
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: "Числовой код ошибки (например, HTTP статус или внутренний код)"
+          example: 400
+        message:
+          type: string
+          description: Человеко-читаемое описание ошибки
+          example: "Не передан обязательный параметр"
+    AvailableSlotDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        startTime:
+          type: string
+          format: datetime
+        endTime:
+          type: string
+          format: datetime
+        zone:
+          type: string
+        availablePlaces:
+          type: integer
+          format: int32
+      required:
+        - id
+        - startTime
+        - endTime
+        - zone
+        - availablePlaces
+    DeliveryReserveRequestDto:
+      type: object
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        slotId:
+          type: string
+          format: uuid
+      required:
+        - orderId
+        - slotId
+    DeliveryReserveResponseDto:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    DeliveryCancelRequestDto:
+      type: object
+      properties:
+        orderId:
+          type: string
+          format: uuid
+      required:
+        - orderId
+    DeliveryCancelResponseDto:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    CreateCourierRequestDto:
+      type: object
+      properties:
+        name:
+          type: string
+        zone:
+          type: string
+        maxOrdersSlot:
+          type: integer
+          format: int32
+      required:
+        - name
+        - zone
+        - maxOrdersSlot
+    CourierDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        zone:
+          type: string
+        maxOrdersSlot:
+          type: integer
+          format: int32
+      required:
+        - id
+        - name
+        - zone
+        - maxOrdersSlot
+    CreateDeliverySlotRequestDto:
+      type: object
+      properties:
+        startTime:
+          type: string
+          format: datetime
+        endTime:
+          type: string
+          format: datetime
+        zone:
+          type: string
+        maxCapacity:
+          type: integer
+          format: int32
+      required:
+        - startTime
+        - endTime
+        - zone
+        - maxCapacity
+    DeliverySlotDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        startTime:
+          type: string
+          format: datetime
+        endTime:
+          type: string
+          format: datetime
+        zone:
+          type: string
+        maxCapacity:
+          type: integer
+          format: int32
+      required:
+        - id
+        - startTime
+        - endTime
+        - zone
+        - maxCapacity
