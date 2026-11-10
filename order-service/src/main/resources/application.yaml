@@ -1,0 +1,29 @@
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          order-service-m2m:
+            provider: keycloak
+            client-id: ${KEYCLOAK_M2M_CLIENT_ID:order-service-m2m}
+            client-secret: ${KEYCLOAK_M2M_CLIENT_SECRET:}
+            authorization-grant-type: client_credentials
+            scope: internal:compensate
+        provider:
+          keycloak:
+            token-uri: ${KEYCLOAK_TOKEN_URI:http://keycloak-keycloakx-http.keycloak.svc.cluster.local:80/auth/realms/onlineshop/protocol/openid-connect/token}
+
+app:
+  billing:
+    base-url: "${APP_BILLING_BASE_URL:http://localhost:8082}"
+  warehouse:
+    base-url: "${APP_WAREHOUSE_BASE_URL:http://localhost:8083}"
+  delivery:
+    base-url: "${APP_DELIVERY_BASE_URL:http://localhost:8084}"
+  kafka:
+    topic:
+      outbox: orders
+      batch-size: 50
+  outbox:
+    schedule-cron: "${APP_OUTBOX_SCHEDULE_CRON:*/1 * * * * *}"
+    retry-delay-seconds: 30

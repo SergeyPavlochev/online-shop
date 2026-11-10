@@ -1,3 +1,5 @@
 databaseChangeLog:
   - include:
       file: db/changelog/scripts/create-tables.sql
+  - include:
+      file: db/changelog/scripts/create-outbox-tables.sql

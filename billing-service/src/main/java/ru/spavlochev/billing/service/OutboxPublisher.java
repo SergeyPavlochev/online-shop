@@ -12,12 +12,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.spavlochev.billing.entity.OutboxEvent;
 import ru.spavlochev.billing.repository.OutboxEventRepository;
-import ru.spavlochev.snackbar.events.v1.EventEnvelope;
-import ru.spavlochev.snackbar.events.v1.Money;
-import ru.spavlochev.snackbar.events.v1.OrderPaymentCompletedEvent;
-import ru.spavlochev.snackbar.events.v1.OrderPaymentFailedEvent;
-import ru.spavlochev.snackbar.events.v1.UserAccountCreatedEvent;
-import ru.spavlochev.snackbar.events.v1.UserAccountDepositedEvent;
+import ru.spavlochev.onlineshop.events.v1.EventEnvelope;
+import ru.spavlochev.onlineshop.events.v1.Money;
+import ru.spavlochev.onlineshop.events.v1.OrderPaymentCompletedEvent;
+import ru.spavlochev.onlineshop.events.v1.OrderPaymentFailedEvent;
+import ru.spavlochev.onlineshop.events.v1.OrderPaymentRefundedEvent;
+import ru.spavlochev.onlineshop.events.v1.UserAccountCreatedEvent;
+import ru.spavlochev.onlineshop.events.v1.UserAccountDepositedEvent;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -31,6 +32,7 @@ public class OutboxPublisher {
 
     public static final String EVENT_TYPE_ORDER_PAYMENT_COMPLETED = "OrderPaymentCompleted";
     public static final String EVENT_TYPE_ORDER_PAYMENT_FAILED = "OrderPaymentFailed";
+    public static final String EVENT_TYPE_ORDER_PAYMENT_REFUNDED = "OrderPaymentRefunded";
     public static final String EVENT_TYPE_USER_ACCOUNT_CREATED = "UserAccountCreated";
     public static final String EVENT_TYPE_USER_ACCOUNT_DEPOSITED = "UserAccountDeposited";
 
@@ -44,7 +46,7 @@ public class OutboxPublisher {
     private final OutboxEventRepository outboxRepository;
     private final KafkaTemplate<String, EventEnvelope> kafkaTemplate;
 
-    @Scheduled(cron = "${app.outbox.schedule-cron:*/10 * * * * *}")
+    @Scheduled(cron = "${app.outbox.schedule-cron:*/1 * * * * *}")
     @Transactional
     public void publishPendingEvents() {
         // Считываем строки в транзакции и удерживаем блокировку до окончания обработки всех событий в пачке
@@ -139,6 +141,15 @@ public class OutboxPublisher {
                             .setCurrency((String) p.get("currency"))
                             .build())
                     .setReason((String) p.get("reason"))
+                    .build());
+        } else if (EVENT_TYPE_ORDER_PAYMENT_REFUNDED.equals(event.getEventType())) {
+            builder.setOrderPaymentRefunded(OrderPaymentRefundedEvent.newBuilder()
+                    .setOrderId((String) p.get("orderId"))
+                    .setUserId((String) p.get("userId"))
+                    .setAmount(Money.newBuilder()
+                            .setAmount((String) p.get("amount"))
+                            .setCurrency((String) p.get("currency"))
+                            .build())
                     .build());
         } else if (EVENT_TYPE_USER_ACCOUNT_CREATED.equals(event.getEventType())) {
             builder.setUserAccountCreated(UserAccountCreatedEvent.newBuilder()

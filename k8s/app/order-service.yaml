@@ -18,6 +18,10 @@ data:
   SPRING_LIQUIBASE_CHANGE_LOG: "classpath:db/changelog/db.changelog-master.yaml"
   SPRING_KAFKA_BOOTSTRAP_SERVERS: "kafka.infra.svc.cluster.local:9092"
   SPRING_KAFKA_CONSUMER_GROUP_ID: "order-service-group"
+  APP_KAFKA_TOPIC_OUTBOX: "orders"
+  APP_KAFKA_TOPIC_BATCH_SIZE: "50"
+  APP_OUTBOX_RETRY_DELAY_SECONDS: "30"
+  APP_OUTBOX_SCHEDULE_CRON: "*/1 * * * * *"
   MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info,metrics,prometheus"
   MANAGEMENT_ENDPOINTS_WEB_BASE_PATH: "/actuator"
   MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: "always"
@@ -25,11 +29,13 @@ data:
   MANAGEMENT_SERVER_PORT: "8081"
   MANAGEMENT_METRICS_DISTRIBUTION_SLO_HTTP_SERVER_REQUESTS: "1ms, 2ms, 3ms, 4ms, 5ms, 6ms, 7ms, 8ms, 9ms, 10ms, 20ms, 50ms, 100ms, 150ms, 200ms, 500ms"
   MANAGEMENT_METRICS_TAGS_APPLICATION: "order-service"
-  KEYCLOAK_ISSUER_URI: "http://keycloak-keycloakx-http.keycloak.svc.cluster.local:80/auth/realms/snackbar"
-  KEYCLOAK_JWK_SET_URI: "http://keycloak-keycloakx-http.keycloak.svc.cluster.local:80/auth/realms/snackbar/protocol/openid-connect/certs"
+  KEYCLOAK_ISSUER_URI: "http://keycloak-keycloakx-http.keycloak.svc.cluster.local:80/auth/realms/onlineshop"
+  KEYCLOAK_JWK_SET_URI: "http://keycloak-keycloakx-http.keycloak.svc.cluster.local:80/auth/realms/onlineshop/protocol/openid-connect/certs"
   APP_BILLING_BASE_URL: "http://billing-svc:80"
   APP_WAREHOUSE_BASE_URL: "http://warehouse-svc:80"
   APP_DELIVERY_BASE_URL: "http://delivery-svc:80"
+  KEYCLOAK_M2M_CLIENT_ID: "order-service-m2m"
+  KEYCLOAK_TOKEN_URI: "http://keycloak-keycloakx-http.keycloak.svc.cluster.local:80/auth/realms/onlineshop/protocol/openid-connect/token"
 
 ---
 apiVersion: apps/v1
@@ -41,7 +47,7 @@ metadata:
     app: order-service
 spec:
   replicas: 1
-  minReadySeconds: 10
+  minReadySeconds: 15
   strategy:
     rollingUpdate:
       maxSurge: 1
@@ -65,12 +71,12 @@ spec:
             httpGet:
               path: /actuator/health/readiness
               port: 8081
-            periodSeconds: 10
+            periodSeconds: 15
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness
               port: 8081
-            initialDelaySeconds: 10
+            initialDelaySeconds: 15
             periodSeconds: 10
           resources:
             requests:
@@ -83,6 +89,11 @@ spec:
             - configMapRef:
                 name: order-config
           env:
+            - name: KEYCLOAK_M2M_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: auth-secrets
+                  key: keycloakM2MClientSecret
             - name: SPRING_DATASOURCE_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -96,7 +107,7 @@ metadata:
   namespace: app
   labels:
     app: order-service
-    efk: snackbar
+    efk: online-shop
 spec:
   selector:
     app: order-service

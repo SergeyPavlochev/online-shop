@@ -1,12 +1,12 @@
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: snackbar-monitor
+  name: onlineshop-monitor
   namespace: app
 spec:
   selector:
     matchLabels:
-      efk: snackbar
+      efk: online-shop
   endpoints:
     - port: metrics
       path: /actuator/prometheus

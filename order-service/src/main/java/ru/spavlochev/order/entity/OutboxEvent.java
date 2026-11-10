@@ -8,6 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -53,6 +54,10 @@ public class OutboxEvent {
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
+    @Column(nullable = false)
+    @Setter
+    private LocalDateTime updatedAt;
+
     @Setter
     private LocalDateTime publishedAt;
 
@@ -61,12 +66,29 @@ public class OutboxEvent {
     @Setter
     private OutboxStatus status;
 
+    @Column(length = 1024)
+    @Setter
+    private String errorMessage;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
+        updatedAt = createdAt;
         if (status == null) {
             status = OutboxStatus.PENDING;
         }
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
+
+    public void setErrorMessage(String errorMessage) {
+        if (errorMessage != null && errorMessage.length() > 1024) {
+            errorMessage = errorMessage.substring(0, 1024);
+        }
+        this.errorMessage = errorMessage;
     }
 
     public enum OutboxStatus {

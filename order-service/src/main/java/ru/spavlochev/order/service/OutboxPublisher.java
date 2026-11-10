@@ -3,18 +3,20 @@ package ru.spavlochev.order.service;
 import com.google.protobuf.Timestamp;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ru.spavlochev.onlineshop.events.v1.EventEnvelope;
+import ru.spavlochev.onlineshop.events.v1.Money;
+import ru.spavlochev.onlineshop.events.v1.OrderCancelledEvent;
+import ru.spavlochev.onlineshop.events.v1.OrderDeliveredEvent;
+import ru.spavlochev.onlineshop.events.v1.OrderPaymentCompletedEvent;
 import ru.spavlochev.order.entity.OutboxEvent;
 import ru.spavlochev.order.repository.OutboxEventRepository;
-import ru.spavlochev.snackbar.events.v1.EventEnvelope;
-import ru.spavlochev.snackbar.events.v1.Money;
-import ru.spavlochev.snackbar.events.v1.OrderCancelledEvent;
-import ru.spavlochev.snackbar.events.v1.OrderCompletedEvent;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -26,27 +28,59 @@ import java.util.Map;
 @Slf4j
 public class OutboxPublisher {
 
-    private static final String ORDERS_TOPIC = "orders";
-    private static final int BATCH_SIZE = 50;
+    @Value("${app.kafka.topic.outbox}")
+    private String outboxTopic;
+    @Value("${app.kafka.topic.batch-size:50}")
+    private int batchSize;
+    @Value("${app.outbox.schedule-cron:*/1 * * * * *}")
+    private String scheduleCron;
+    @Value("${app.outbox.retry-delay-seconds:30}")
+    private int retryDelaySeconds;
 
     private final OutboxEventRepository outboxRepository;
     private final KafkaTemplate<String, EventEnvelope> kafkaTemplate;
 
-    @Scheduled(fixedDelay = 500)
+    @Scheduled(cron = "${app.outbox.schedule-cron:*/1 * * * * *}")
     @Transactional
     public void publishPendingEvents() {
         // Считываем строки в транзакции и удерживаем блокировку до окончания обработки всех событий в пачке
         List<OutboxEvent> events = outboxRepository
-                .findByStatusOrderByCreatedAtAsc(OutboxEvent.OutboxStatus.PENDING, PageRequest.of(0, BATCH_SIZE));
+                .findByStatusOrderByCreatedAtAsc(OutboxEvent.OutboxStatus.PENDING, PageRequest.of(0, batchSize));
 
         for (OutboxEvent event : events) {
             try {
                 publishEvent(event);
                 markAsPublished(event);
             } catch (Exception e) {
-                log.error("Failed to publish outbox event: eventId={}", event.getEventId(), e);
-                markAsFailed(event);
+                log.error("Failed to publish outbox event: eventId={}, type={}",
+                        event.getEventId(), event.getEventType(), e);
+                markAsFailed(event, e.getMessage());
             }
+        }
+    }
+
+    @Scheduled(cron = "${app.outbox.schedule-cron:*/10 * * * * *}")
+    @Transactional
+    public void retryFailedEvents() {
+        log.debug("Checking for failed events to retry");
+
+        LocalDateTime now = LocalDateTime.now();
+        List<OutboxEvent> failedEvents = outboxRepository
+                .findByStatusAndCreatedAtLessThan(OutboxEvent.OutboxStatus.FAILED, now.minusSeconds(retryDelaySeconds));
+
+        if (failedEvents.isEmpty()) {
+            log.debug("No failed events to retry");
+            return;
+        }
+
+        log.info("Found {} failed events to retry", failedEvents.size());
+
+        for (OutboxEvent event : failedEvents) {
+            event.setStatus(OutboxEvent.OutboxStatus.PENDING);
+            event.setUpdatedAt(now);
+            event.setErrorMessage(null);
+            outboxRepository.save(event);
+            log.info("Retrying failed event: eventId={}", event.getEventId());
         }
     }
 
@@ -62,7 +96,7 @@ public class OutboxPublisher {
     private void publishEvent(OutboxEvent event) {
         EventEnvelope envelope = buildEnvelope(event);
         String key = (String) event.getPayload().get("userId");
-        SendResult<String, EventEnvelope> result = kafkaTemplate.send(ORDERS_TOPIC, key, envelope).join();
+        SendResult<String, EventEnvelope> result = kafkaTemplate.send(outboxTopic, key, envelope).join();
         log.info("Event published: eventId={}, type={}, topic={}, partition={}, offset={}",
                 envelope.getEventId(),
                 envelope.getEventType(),
@@ -83,8 +117,8 @@ public class OutboxPublisher {
                 .setSource("order-service");
 
         Map<String, Object> p = event.getPayload();
-        if ("OrderConfirmed".equals(event.getEventType())) {
-            builder.setOrderCompleted(OrderCompletedEvent.newBuilder()
+        if ("OrderPaymentCompleted".equals(event.getEventType())) {
+            builder.setOrderPaymentCompleted(OrderPaymentCompletedEvent.newBuilder()
                     .setOrderId((String) p.get("orderId"))
                     .setUserId((String) p.get("userId"))
                     .setAmount(Money.newBuilder()
@@ -102,6 +136,12 @@ public class OutboxPublisher {
                             .build())
                     .setReason((String) p.get("reason"))
                     .build());
+        } else if ("OrderDelivered".equals(event.getEventType())) {
+            builder.setOrderDelivered(OrderDeliveredEvent.newBuilder()
+                    .setOrderId((String) p.get("orderId"))
+                    .setUserId((String) p.get("userId"))
+                    .setTrackingNumber((String) p.get("trackingNumber"))
+                    .build());
         }
 
         return builder.build();
@@ -109,12 +149,13 @@ public class OutboxPublisher {
 
     private void markAsPublished(OutboxEvent event) {
         event.setStatus(OutboxEvent.OutboxStatus.PUBLISHED);
-        event.setPublishedAt(java.time.LocalDateTime.now());
+        event.setPublishedAt(LocalDateTime.now());
         outboxRepository.save(event);
     }
 
-    private void markAsFailed(OutboxEvent event) {
+    private void markAsFailed(OutboxEvent event, String errorMessage) {
         event.setStatus(OutboxEvent.OutboxStatus.FAILED);
+        event.setErrorMessage(errorMessage);
         outboxRepository.save(event);
     }
 }

@@ -17,8 +17,27 @@
     <properties>
         <java.version>21</java.version>
         <logstash.encoder.version>7.4</logstash.encoder.version>
+        <protobuf.version>3.25.1</protobuf.version>
     </properties>
     <dependencies>
+        <dependency>
+            <groupId>ru.spavlochev</groupId>
+            <artifactId>contracts</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+            <version>${protobuf.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-liquibase</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>

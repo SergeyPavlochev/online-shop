@@ -5,8 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.keycloak.OAuth2Constants;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.KeycloakBuilder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -46,14 +44,14 @@ public class KeycloakConfig {
     }
 
     @Bean
-    public ClientHttpRequestInterceptor traceIdInterceptor() {
+    public ClientHttpRequestInterceptor correlationIdInterceptor() {
         return (org.springframework.http.HttpRequest httpRequest, byte[] body, ClientHttpRequestExecution execution) -> {
             ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
             if (attributes != null) {
                 HttpServletRequest request = attributes.getRequest();
-                String traceId = request.getHeader("X-Correlation-Id");
-                if (traceId != null && !traceId.isBlank()) {
-                    httpRequest.getHeaders().set("X-Correlation-Id", traceId);
+                String correlationId = request.getHeader("X-Correlation-Id");
+                if (correlationId != null && !correlationId.isBlank()) {
+                    httpRequest.getHeaders().set("X-Correlation-Id", correlationId);
                 }
             }
             return execution.execute(httpRequest, body);
@@ -61,9 +59,9 @@ public class KeycloakConfig {
     }
 
     @Bean
-    public RestTemplate restTemplate(ClientHttpRequestInterceptor traceIdInterceptor) {
+    public RestTemplate restTemplate(ClientHttpRequestInterceptor correlationIdInterceptor) {
         RestTemplate restTemplate = new RestTemplate();
-        restTemplate.setInterceptors(java.util.List.of(traceIdInterceptor()));
+        restTemplate.setInterceptors(java.util.List.of(correlationIdInterceptor));
         return restTemplate;
     }
 }

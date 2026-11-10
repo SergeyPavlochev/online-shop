@@ -1,7 +1,7 @@
 syntax = "proto3";
-package snackbar.events.v1;
+package onlineshop.events.v1;
 
-option java_package = "ru.spavlochev.snackbar.events.v1";
+option java_package = "ru.spavlochev.onlineshop.events.v1";
 option java_multiple_files = true;
 
 import "google/protobuf/timestamp.proto";
@@ -22,6 +22,13 @@ message EventEnvelope {
     OrderPaymentFailedEvent   order_payment_failed = 15;
     UserAccountCreatedEvent   user_account_created = 16;
     UserAccountDepositedEvent user_account_deposited = 17;
+    OrderPickingStartedEvent  order_picking_started = 18;
+    OrderPickingCompletedEvent order_picking_completed = 19;
+    OrderPickingFailedEvent   order_picking_failed = 20;
+    OrderDeliveryStartedEvent order_delivery_started = 21;
+    OrderDeliveredEvent       order_delivered = 22;
+    OrderDeliveryFailedEvent  order_delivery_failed = 23;
+    OrderPaymentRefundedEvent order_payment_refunded = 24;
   }
 }
 
@@ -75,5 +82,49 @@ message UserAccountCreatedEvent {
 message UserAccountDepositedEvent {
   string user_id = 1;
   string account_id = 2;
+  Money  amount = 3;
+}
+
+message OrderPickingStartedEvent {
+  string order_id = 1;
+  string user_id = 2;
+  string item_sku = 3;
+}
+
+message OrderPickingCompletedEvent {
+  string order_id = 1;
+  string user_id = 2;
+  string tracking_number = 3;
+}
+
+message OrderPickingFailedEvent {
+  string order_id = 1;
+  string user_id = 2;
+  string reason = 3;
+}
+
+message OrderDeliveryStartedEvent {
+  string order_id = 1;
+  string user_id = 2;
+  string tracking_number = 3;
+  string courier_id = 4;
+}
+
+message OrderDeliveredEvent {
+  string order_id = 1;
+  string user_id = 2;
+  string tracking_number = 3;
+}
+
+message OrderDeliveryFailedEvent {
+  string order_id = 1;
+  string user_id = 2;
+  string tracking_number = 3;
+  string reason = 4;
+}
+
+message OrderPaymentRefundedEvent {
+  string order_id = 1;
+  string user_id = 2;
   Money  amount = 3;
 }

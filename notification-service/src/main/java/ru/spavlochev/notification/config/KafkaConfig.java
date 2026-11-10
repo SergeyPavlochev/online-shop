@@ -1,3 +1,4 @@
+
 package ru.spavlochev.notification.config;
 
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -20,7 +21,7 @@ import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.util.backoff.FixedBackOff;
-import ru.spavlochev.snackbar.events.v1.EventEnvelope;
+import ru.spavlochev.onlineshop.events.v1.EventEnvelope;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -59,6 +60,7 @@ public class KafkaConfig {
         configProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         configProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ProtobufDeserializer.class);
         configProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        configProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
         return new DefaultKafkaConsumerFactory<>(configProps);
     }
 

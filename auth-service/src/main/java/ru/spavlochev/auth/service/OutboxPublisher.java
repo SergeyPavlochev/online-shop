@@ -12,13 +12,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.spavlochev.auth.entity.OutboxEvent;
 import ru.spavlochev.auth.repository.OutboxEventRepository;
-import ru.spavlochev.snackbar.events.v1.EventEnvelope;
-import ru.spavlochev.snackbar.events.v1.UserRegisteredEvent;
+import ru.spavlochev.onlineshop.events.v1.EventEnvelope;
+import ru.spavlochev.onlineshop.events.v1.UserRegisteredEvent;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 @Service
 @RequiredArgsConstructor
@@ -37,7 +41,7 @@ public class OutboxPublisher {
     private final OutboxEventRepository outboxRepository;
     private final KafkaTemplate<String, EventEnvelope> kafkaTemplate;
 
-    @Scheduled(cron = "${app.outbox.schedule-cron:*/10 * * * * *}")
+    @Scheduled(cron = "${app.outbox.schedule-cron:*/1 * * * * *}")
     @Transactional
     public void publishPendingEvents() {
         // Считываем строки в транзакции и удерживаем блокировку до окончания обработки всех событий в пачке
@@ -93,13 +97,21 @@ public class OutboxPublisher {
     private void publishEvent(OutboxEvent event) {
         EventEnvelope envelope = buildEnvelope(event);
         String key = (String) event.getPayload().get("userId");
-        SendResult<String, EventEnvelope> result = kafkaTemplate.send(outboxTopic, key, envelope).join();
-        log.info("Event published: eventId={}, type={}, topic={}, partition={}, offset={}",
-                envelope.getEventId(),
-                envelope.getEventType(),
-                result.getRecordMetadata().topic(),
-                result.getRecordMetadata().partition(),
-                result.getRecordMetadata().offset());
+        try {
+            SendResult<String, EventEnvelope> result =
+                    kafkaTemplate.send(outboxTopic, key, envelope).get(10, TimeUnit.SECONDS);
+            log.info("Event published: eventId={}, type={}, topic={}, partition={}, offset={}",
+                    envelope.getEventId(),
+                    envelope.getEventType(),
+                    result.getRecordMetadata().topic(),
+                    result.getRecordMetadata().partition(),
+                    result.getRecordMetadata().offset());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Kafka send interrupted for eventId=" + event.getEventId(), e);
+        } catch (ExecutionException | TimeoutException e) {
+            throw new RuntimeException("Kafka send failed for eventId=" + event.getEventId(), e);
+        }
     }
 
     private EventEnvelope buildEnvelope(OutboxEvent event) {

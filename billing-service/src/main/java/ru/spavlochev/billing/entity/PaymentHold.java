@@ -50,6 +50,7 @@ public class PaymentHold {
     public enum HoldStatus {
         RESERVED,
         CONFIRMED,
-        CANCELLED
+        CANCELLED,
+        REFUNDED
     }
 }

@@ -7,6 +7,7 @@ import org.keycloak.OAuth2Constants;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.resource.RealmResource;
 import org.keycloak.admin.client.resource.RolesResource;
+import org.keycloak.representations.idm.ClientRepresentation;
 import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
@@ -21,8 +22,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import ru.spavlochev.auth.exception.AuthenticationException;
 
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Matcher;
@@ -221,6 +224,72 @@ public class KeycloakService {
     static String extractResourceId(String path) {
         Matcher matcher = USER_ID_PATTERN.matcher(path);
         return matcher.find() ? matcher.group(1) : null;
+    }
+
+    /**
+     * Registers order-service as a service account client in Keycloak.
+     * Creates the client with service-accounts-enabled and assigns ROLE_INTERNAL_SERVICE.
+     */
+    public void registerM2MClient(String clientId, String clientSecret) {
+        log.info("Registering M2M client in Keycloak: clientId={}", clientId);
+
+        RealmResource realmResource = realmResource();
+
+        // Check if client already exists
+        List<ClientRepresentation> existingClients = realmResource.clients().findAll(clientId, null, null, 0, 100);
+        if (!existingClients.isEmpty()) {
+            log.info("M2M client already exists in Keycloak: clientId={}", clientId);
+            return;
+        }
+
+        // Create the client representation
+        ClientRepresentation clientRep = new ClientRepresentation();
+        clientRep.setClientId(clientId);
+        clientRep.setClientAuthenticatorType("client-secret");
+        clientRep.setSecret(clientSecret);
+        clientRep.setServiceAccountsEnabled(true);
+        clientRep.setStandardFlowEnabled(false);
+        clientRep.setDirectAccessGrantsEnabled(false);
+
+        try (Response response = realmResource.clients().create(clientRep)) {
+            if (response.getStatus() == 201) {
+                log.info("M2M client created successfully: clientId={}", clientId);
+            } else {
+                log.warn("M2M client creation returned status: {}", response.getStatus());
+            }
+        }
+
+        // Assign ROLE_INTERNAL_SERVICE client role to the service account user
+        String serviceAccountId = getServiceAccountId(realmResource, clientId);
+        if (serviceAccountId != null) {
+            RoleRepresentation internalRole = getOrCreateInternalRole(realmResource);
+            realmResource.users().get(serviceAccountId).roles().clientLevel(clientId)
+                    .add(List.of(internalRole));
+            log.info("ROLE_INTERNAL_SERVICE assigned to service account: {}", serviceAccountId);
+        }
+    }
+
+    private String getServiceAccountId(RealmResource realmResource, String clientId) {
+        List<ClientRepresentation> clients = realmResource.clients().findAll(clientId, null, null, 0, 100);
+        if (clients.isEmpty()) return null;
+        // The service account user has username = client-id
+        List<UserRepresentation> serviceAccounts = realmResource.users()
+                .search(clientId, null, null, null, null, null, null, null, null, null, null);
+        return serviceAccounts.isEmpty() ? null : serviceAccounts.get(0).getId();
+    }
+
+    private RoleRepresentation getOrCreateInternalRole(RealmResource realmResource) {
+        RolesResource rolesResource = realmResource.roles();
+        try {
+            return rolesResource.get("INTERNAL_SERVICE").toRepresentation();
+        } catch (Exception e) {
+            RoleRepresentation newRole = new RoleRepresentation();
+            newRole.setName("INTERNAL_SERVICE");
+            newRole.setDescription("Role for inter-service M2M communication");
+            rolesResource.create(newRole);
+            log.info("Role INTERNAL_SERVICE created");
+            return rolesResource.get("INTERNAL_SERVICE").toRepresentation();
+        }
     }
 
     public record KeycloakToken(String userId, String accessToken, String refreshToken) {

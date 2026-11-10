@@ -43,5 +43,5 @@ public class SlotReservation {
     @Setter
     private ReservationStatus status;
 
-    public enum ReservationStatus {RESERVED, CANCELLED}
+    public enum ReservationStatus {RESERVED, IN_DELIVERY, COMPLETED, CANCELLED}
 }

@@ -2,6 +2,7 @@ package ru.spavlochev.billing.service;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.spavlochev.billing.entity.Account;
@@ -15,6 +16,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PaymentsService {
 
     private final AccountRepository accountRepository;
@@ -53,6 +55,7 @@ public class PaymentsService {
                 .orElseThrow(() -> new EntityNotFoundException("Hold not found"));
 
         if (hold.getStatus() != PaymentHold.HoldStatus.RESERVED) {
+            log.warn("Cannot confirm hold with status {} for orderId={}", hold.getStatus(), orderId);
             return;
         }
 
@@ -72,21 +75,25 @@ public class PaymentsService {
                     "OrderPaymentCompleted",
                     orderId,
                     "Order",
-                    Map.of("orderId", orderId,
-                            "userId", hold.getUserId(),
-                            "amount", hold.getAmount(),
+                    Map.of("orderId", orderId.toString(),
+                            "userId", hold.getUserId().toString(),
+                            "amount", hold.getAmount().toPlainString(),
                             "currency", hold.getCurrency())
             );
+
+            log.info("Payment confirmed for orderId={}, amount={}", orderId, hold.getAmount());
         } catch (Exception e) {
             outboxService.saveEvent(
                     "OrderPaymentFailed",
                     orderId,
                     "Order",
-                    Map.of("orderId", orderId,
-                            "userId", hold.getUserId(),
-                            "amount", hold.getAmount(),
+                    Map.of("orderId", orderId.toString(),
+                            "userId", hold.getUserId().toString(),
+                            "amount", hold.getAmount().toPlainString(),
                             "currency", hold.getCurrency(),
                             "reason", e.getMessage()));
+            // Re-throw to trigger transaction rollback — otherwise partial state is committed
+            throw e;
         }
     }
 
@@ -106,5 +113,38 @@ public class PaymentsService {
 
         hold.setStatus(PaymentHold.HoldStatus.CANCELLED);
         paymentHoldRepository.save(hold);
+    }
+
+    @Transactional
+    public void refund(UUID orderId) {
+        PaymentHold hold = paymentHoldRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new EntityNotFoundException("Hold not found for orderId: " + orderId));
+
+        if (hold.getStatus() != PaymentHold.HoldStatus.CONFIRMED) {
+            log.warn("Cannot refund hold with status {} for orderId={}", hold.getStatus(), orderId);
+            return;
+        }
+
+        Account account = accountRepository.findByUserIdForUpdate(hold.getUserId())
+                .orElseThrow(() -> new EntityNotFoundException("Account not found"));
+
+        // Возвращаем деньги на счёт
+        account.setBalance(account.getBalance().add(hold.getAmount()));
+        accountRepository.save(account);
+
+        hold.setStatus(PaymentHold.HoldStatus.REFUNDED);
+        paymentHoldRepository.save(hold);
+
+        outboxService.saveEvent(
+                "OrderPaymentRefunded",
+                orderId,
+                "Order",
+                Map.of("orderId", orderId.toString(),
+                        "userId", hold.getUserId().toString(),
+                        "amount", hold.getAmount().toPlainString(),
+                        "currency", hold.getCurrency())
+        );
+
+        log.info("Payment refunded for orderId={}, amount={}", orderId, hold.getAmount());
     }
 }

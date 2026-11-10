@@ -45,13 +45,13 @@ public class DeliveryService {
     public void reserve(UUID orderId, UUID slotId) {
         log.info("Reserving delivery: orderId={}, slotId={}", orderId, slotId);
 
+        DeliverySlot slot = slotRepository.findByIdForUpdate(slotId)
+                .orElseThrow(() -> new IllegalStateException("Slot not found: " + slotId));
+
         if (reservationRepository.findByOrderId(orderId).isPresent()) {
             log.info("Reservation already exists for orderId={}", orderId);
             return;
         }
-
-        DeliverySlot slot = slotRepository.findByIdForUpdate(slotId)
-                .orElseThrow(() -> new IllegalStateException("Slot not found: " + slotId));
 
         if (slot.getCurrentLoad() >= slot.getMaxCapacity()) {
             throw new IllegalStateException("Slot is fully booked: " + slotId);

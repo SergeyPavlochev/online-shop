@@ -5,8 +5,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ru.spavlochev.order.entity.IdempotencyKey;
+import ru.spavlochev.order.entity.Order;
 import ru.spavlochev.order.openapi.dto.CreateOrderRequestDto;
 import ru.spavlochev.order.openapi.dto.OrderDto;
+import ru.spavlochev.order.repository.IdempotencyKeyRepository;
 import ru.spavlochev.order.repository.OrderRepository;
 
 import java.math.BigDecimal;
@@ -19,28 +22,63 @@ import java.util.UUID;
 public class OrderService {
 
     private final OrderRepository orderRepository;
+    private final IdempotencyKeyRepository idempotencyKeyRepository;
     private final OrderSagaOrchestrator orderSagaOrchestrator;
 
     @Transactional
-    public OrderDto createOrder(UUID userId, CreateOrderRequestDto rqDto) {
-        var order = orderSagaOrchestrator.startOrderSaga(
-                userId,
-                new BigDecimal(rqDto.getAmount()),
-                rqDto.getCurrency(),
-                rqDto.getItemSku().toString(),
-                rqDto.getQuantity(),
-                rqDto.getDeliverySlot().toString());
+    public OrderDto createOrderWithIdempotencyKey(UUID userId, CreateOrderRequestDto rqDto,
+                                                   String jwtToken, String idempotencyKey) {
+        // Проверяем, не обработан ли уже этот ключ
+        return idempotencyKeyRepository.findByKey(idempotencyKey)
+                .map(existingKey -> {
+                    // Ключ уже существует — возвращаем существующий заказ
+                    if (existingKey.getStatus() == IdempotencyKey.Status.COMPLETED) {
+                        Order order = orderRepository.findById(existingKey.getOrderId())
+                                .orElseThrow(() -> new EntityNotFoundException(
+                                        "Order not found for idempotency key: " + idempotencyKey));
+                        log.info("Idempotency key already completed, returning existing order: key={}, orderId={}",
+                                idempotencyKey, order.getId());
+                        return new OrderDto()
+                                .id(order.getId())
+                                .userId(order.getUserId())
+                                .amount(order.getAmount().toString())
+                                .currency(order.getCurrency())
+                                .status(OrderDto.StatusEnum.fromValue(order.getStatus().name()))
+                                .createdAt(order.getCreatedAt().atOffset(ZoneOffset.UTC));
+                    }
+                    // Ключ в PROCESSING — заказ ещё создаётся, возвращаем 202
+                    log.warn("Idempotency key already in PROCESSING state: key={}", idempotencyKey);
+                    throw new IllegalStateException("Order is already being processed for key: " + idempotencyKey);
+                })
+                .orElseGet(() -> {
+                    // Новый ключ — создаём заказ
+                    Order order = orderSagaOrchestrator.startOrderSaga(
+                            userId,
+                            new BigDecimal(rqDto.getAmount()),
+                            rqDto.getCurrency(),
+                            rqDto.getItemSku().toString(),
+                            rqDto.getQuantity(),
+                            rqDto.getDeliverySlot().toString(),
+                            jwtToken);
 
-        log.info("Order created: orderId={}, userId={}, status={}",
-                order.getId(), userId, order.getStatus());
+                    // Сохраняем idempotency key
+                    idempotencyKeyRepository.save(IdempotencyKey.builder()
+                            .key(idempotencyKey)
+                            .orderId(order.getId())
+                            .status(IdempotencyKey.Status.COMPLETED)
+                            .build());
 
-        return new OrderDto()
-                .id(order.getId())
-                .userId(order.getUserId())
-                .amount(order.getAmount().toString())
-                .currency(order.getCurrency())
-                .status(OrderDto.StatusEnum.fromValue(order.getStatus().name()))
-                .createdAt(order.getCreatedAt().atOffset(ZoneOffset.UTC));
+                    log.info("Order created with idempotency key: key={}, orderId={}",
+                            idempotencyKey, order.getId());
+
+                    return new OrderDto()
+                            .id(order.getId())
+                            .userId(order.getUserId())
+                            .amount(order.getAmount().toString())
+                            .currency(order.getCurrency())
+                            .status(OrderDto.StatusEnum.fromValue(order.getStatus().name()))
+                            .createdAt(order.getCreatedAt().atOffset(ZoneOffset.UTC));
+                });
     }
 
     @Transactional(readOnly = true)
@@ -55,5 +93,16 @@ public class OrderService {
                         .status(OrderDto.StatusEnum.fromValue(order.getStatus().name()))
                         .createdAt(order.getCreatedAt().atOffset(ZoneOffset.UTC)))
                 .orElseThrow(() -> new EntityNotFoundException("Order not found: " + orderId));
+    }
+
+    @Transactional
+    public void cancelOrder(UUID userId, UUID orderId, String reason, String jwtToken) {
+        Order order = orderRepository.findById(orderId)
+                .filter(o -> userId.equals(o.getUserId()))
+                .orElseThrow(() -> new EntityNotFoundException("Order not found: " + orderId));
+
+        orderSagaOrchestrator.cancelOrder(orderId, reason, jwtToken);
+
+        log.info("Order cancelled: orderId={}, reason={}", orderId, reason);
     }
 }

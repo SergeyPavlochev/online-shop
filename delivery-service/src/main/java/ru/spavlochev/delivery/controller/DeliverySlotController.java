@@ -17,7 +17,7 @@ public class DeliverySlotController implements DeliverySlotApi {
     private final DeliverySlotService deliverySlotService;
 
     @Override
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<DeliverySlotDto> create(CreateDeliverySlotRequestDto dto) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(deliverySlotService.create(dto.getStartTime(), dto.getEndTime(), dto.getZone(), dto.getMaxCapacity()));

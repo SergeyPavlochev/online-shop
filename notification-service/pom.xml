@@ -15,6 +15,7 @@
     <description>notification-service</description>
     <properties>
         <java.version>21</java.version>
+        <logstash.encoder.version>7.4</logstash.encoder.version>
     </properties>
     <dependencies>
         <dependency>
@@ -74,6 +75,11 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-liquibase</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
+            <version>${logstash.encoder.version}</version>
         </dependency>
     </dependencies>
 

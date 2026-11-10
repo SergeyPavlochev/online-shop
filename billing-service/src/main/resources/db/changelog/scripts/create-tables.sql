@@ -34,7 +34,7 @@ CREATE TABLE outbox_events
     error_message  VARCHAR(1024),
     CONSTRAINT pk_outbox_events PRIMARY KEY (id),
     CONSTRAINT uc_outbox_events_event_id UNIQUE (event_id),
-    CONSTRAINT uc_outbox_events_aggregate_type_aggregate_id UNIQUE (aggregate_type, aggregate_id)
+    CONSTRAINT uc_outbox_events_aggregate_type_aggregate_id UNIQUE (event_type, aggregate_type, aggregate_id)
 );
 
 CREATE TABLE payment_holds

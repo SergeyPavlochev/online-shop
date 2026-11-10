@@ -7,11 +7,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import ru.spavlochev.auth.api.model.ErrorResponseDto;
 import ru.spavlochev.auth.exception.AuthenticationException;
 import ru.spavlochev.auth.exception.UserAlreadyExistsException;
-
-import java.util.HashMap;
-import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -19,30 +17,34 @@ public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(UserAlreadyExistsException.class)
-    public ResponseEntity<Void> handleUserAlreadyExists(UserAlreadyExistsException ex) {
+    public ResponseEntity<ErrorResponseDto> handleUserAlreadyExists(UserAlreadyExistsException ex) {
         log.warn("User already exists: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponseDto(HttpStatus.BAD_REQUEST.value(), ex.getMessage()));
     }
 
     @ExceptionHandler(AuthenticationException.class)
-    public ResponseEntity<Void> handleAuthentication(AuthenticationException ex) {
+    public ResponseEntity<ErrorResponseDto> handleAuthentication(AuthenticationException ex) {
         log.warn("Authentication failed: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(new ErrorResponseDto(HttpStatus.UNAUTHORIZED.value(), "Unauthorized: " + ex.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, String>> handleValidationErrors(MethodArgumentNotValidException ex) {
-        Map<String, String> errors = new HashMap<>();
+    public ResponseEntity<ErrorResponseDto> handleValidationErrors(MethodArgumentNotValidException ex) {
+        StringBuilder messages = new StringBuilder();
         ex.getBindingResult().getFieldErrors().forEach(error ->
-                errors.put(error.getField(), error.getDefaultMessage())
+                messages.append(error.getField()).append(": ").append(error.getDefaultMessage()).append("; ")
         );
-        log.warn("Validation failed: {}", errors);
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errors);
+        log.warn("Validation failed: {}", messages.toString());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponseDto(HttpStatus.BAD_REQUEST.value(), messages.toString().trim()));
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Void> handleGeneral(Exception ex) {
+    public ResponseEntity<ErrorResponseDto> handleGeneral(Exception ex) {
         log.error("Internal error", ex);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponseDto(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Internal server error"));
     }
 }

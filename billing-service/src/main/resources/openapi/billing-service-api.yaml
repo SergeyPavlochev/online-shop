@@ -161,6 +161,38 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponseDto'
 
+  /api/v1/payments/refund:
+    post:
+      tags:
+        - Payments
+      operationId: refund
+      summary: Вернуть деньги за отменённый заказ
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentRefundRequestDto'
+      responses:
+        200:
+          description: Успешный возврат средств
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentRefundResponseDto'
+        404:
+          description: Платёж не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        400:
+          description: Некорректный запрос
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+
 components:
   schemas:
     ErrorResponseDto:
@@ -250,6 +282,21 @@ components:
       required:
         - orderId
     PaymentCancelResponseDto:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    PaymentRefundRequestDto:
+      type: object
+      properties:
+        orderId:
+          type: string
+          format: uuid
+      required:
+        - orderId
+    PaymentRefundResponseDto:
       type: object
       properties:
         status:

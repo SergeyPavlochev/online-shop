@@ -2,6 +2,7 @@ package ru.spavlochev.warehouse.controller;
 
 import jakarta.persistence.EntityExistsException;
 import jakarta.persistence.EntityNotFoundException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -11,10 +12,12 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import ru.spavlochev.warehouse.openapi.dto.ErrorResponseDto;
 
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<ErrorResponseDto> handleEntityNotFoundException(EntityNotFoundException e) {
+        log.error("Entity not found: {}", e.getMessage(), e);
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(new ErrorResponseDto()
                         .code(HttpStatus.NOT_FOUND.value())
@@ -23,6 +26,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(EntityExistsException.class)
     public ResponseEntity<ErrorResponseDto> handleEntityExistsException(EntityExistsException e) {
+        log.error("Entity already exists: {}", e.getMessage(), e);
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(new ErrorResponseDto()
                         .code(HttpStatus.CONFLICT.value())
@@ -31,6 +35,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AuthenticationCredentialsNotFoundException.class)
     public ResponseEntity<ErrorResponseDto> handleAuthenticationException(AuthenticationCredentialsNotFoundException e) {
+        log.error("Authentication failed: {}", e.getMessage(), e);
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(new ErrorResponseDto()
                         .code(HttpStatus.UNAUTHORIZED.value())
@@ -39,6 +44,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponseDto> handleAccessDeniedException(AccessDeniedException e) {
+        log.error("Access denied: {}", e.getMessage(), e);
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(new ErrorResponseDto()
                         .code(HttpStatus.FORBIDDEN.value())
@@ -47,6 +53,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ErrorResponseDto> handleRuntimeException(RuntimeException e) {
+        log.error("Runtime exception: {}", e.getMessage(), e);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ErrorResponseDto()
                         .code(HttpStatus.INTERNAL_SERVER_ERROR.value())

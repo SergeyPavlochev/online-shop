@@ -13,6 +13,14 @@ paths:
       description: Создает заказ, запускает Сагу для выполнения заказа
       security:
         - bearerAuth: []
+      parameters:
+        - name: Idempotency-Key
+          description: Ключ идемпотентности запроса
+          in: header
+          required: true
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
@@ -166,7 +174,15 @@ components:
           example: RUB
         status:
           type: string
-          enum: [PENDING, CONFIRMED, CANCELLED]
+          enum: [PENDING,
+                 PAYMENT_COMPLETED,
+                 PICKING,
+                 PICKING_FAILED,
+                 READY_FOR_DELIVERY,
+                 IN_DELIVERY,
+                 DELIVERY_FAILED,
+                 DELIVERED,
+                 CANCELLED]
           description: Статус заказа
           example: PAID
         createdAt:

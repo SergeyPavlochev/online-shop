@@ -19,6 +19,14 @@ public class UserContext {
         return jwt.getSubject();
     }
 
+    public static String getJwt() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new IllegalStateException("User not authenticated");
+        }
+        return ((Jwt) authentication.getPrincipal()).getTokenValue();
+    }
+
     public static List<String> getCurrentUserRoles() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()) {

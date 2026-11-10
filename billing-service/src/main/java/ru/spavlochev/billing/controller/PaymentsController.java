@@ -10,6 +10,8 @@ import ru.spavlochev.billing.openapi.dto.PaymentCancelRequestDto;
 import ru.spavlochev.billing.openapi.dto.PaymentCancelResponseDto;
 import ru.spavlochev.billing.openapi.dto.PaymentConfirmRequestDto;
 import ru.spavlochev.billing.openapi.dto.PaymentConfirmResponseDto;
+import ru.spavlochev.billing.openapi.dto.PaymentRefundRequestDto;
+import ru.spavlochev.billing.openapi.dto.PaymentRefundResponseDto;
 import ru.spavlochev.billing.openapi.dto.PaymentReserveRequestDto;
 import ru.spavlochev.billing.openapi.dto.PaymentReserveResponseDto;
 import ru.spavlochev.billing.service.PaymentsService;
@@ -42,5 +44,12 @@ public class PaymentsController implements PaymentsApi {
     public ResponseEntity<PaymentCancelResponseDto> cancel(PaymentCancelRequestDto dto) {
         paymentsService.cancel(dto.getOrderId());
         return ResponseEntity.ok(new PaymentCancelResponseDto("cancelled"));
+    }
+
+    @Override
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<PaymentRefundResponseDto> refund(PaymentRefundRequestDto dto) {
+        paymentsService.refund(dto.getOrderId());
+        return ResponseEntity.ok(new PaymentRefundResponseDto("refunded"));
     }
 }

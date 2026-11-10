@@ -43,8 +43,8 @@ public class AccountService {
                 "UserAccountCreated",
                 account.getId(),
                 "Account",
-                Map.of("userId", userId,
-                        "accountId", account.getId())
+                Map.of("userId", userId.toString(),
+                        "accountId", account.getId().toString())
         );
 
         log.info("Account created: accountId={}, userId={}", account.getId(), userId);
@@ -75,9 +75,9 @@ public class AccountService {
                 "UserAccountDeposited",
                 userId,
                 "Account",
-                Map.of("userId", userId,
-                        "accountId", accountId,
-                        "amount", amount,
+                Map.of("userId", userId.toString(),
+                        "accountId", accountId.toString(),
+                        "amount", amount.toPlainString(),
                         "currency", currency));
         return accountDto;
     }

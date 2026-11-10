@@ -46,16 +46,6 @@ public class LoggingFilter extends OncePerRequestFilter {
             filterChain.doFilter(wrappedRequest, wrappedResponse);
             long duration = System.currentTimeMillis() - start;
 
-            String requestBody = new String(wrappedRequest.getContentAsByteArray());
-            if (!requestBody.isEmpty()) {
-                log.info("Request body: {}", requestBody);
-            }
-
-            String responseBody = new String(wrappedResponse.getContentAsByteArray());
-            if (!responseBody.isEmpty()) {
-                log.info("Response body: {}", responseBody);
-            }
-
             log.info("Outgoing response: {} {}{} -> {} ({}ms)", method, uri,
                     queryString != null ? "?" + queryString : "", response.getStatus(), duration);
 

@@ -29,7 +29,7 @@ public class LoggingFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         String correlationId = request.getHeader(CORRELATION_ID_HEADER);
         if (correlationId != null && !correlationId.isBlank()) {
-            MDC.put("traceId", correlationId);
+            MDC.put("correlation_id", correlationId);
         }
 
         ContentCachingRequestWrapper wrappedRequest = new ContentCachingRequestWrapper(request, 4096);
@@ -39,29 +39,20 @@ public class LoggingFilter extends OncePerRequestFilter {
         String uri = request.getRequestURI();
         String queryString = request.getQueryString();
 
-        log.info("Incoming request: {} {}{}", method, uri, queryString != null ? "?" + queryString : "");
+        log.info("Incoming request: {} {}{} {}", method, uri, queryString != null ? "?" + queryString : "",
+                wrappedRequest.getContentAsString());
 
         try {
             long start = System.currentTimeMillis();
             filterChain.doFilter(wrappedRequest, wrappedResponse);
             long duration = System.currentTimeMillis() - start;
 
-            String requestBody = new String(wrappedRequest.getContentAsByteArray());
-            if (!requestBody.isEmpty()) {
-                log.info("Request body: {}", requestBody);
-            }
-
-            String responseBody = new String(wrappedResponse.getContentAsByteArray());
-            if (!responseBody.isEmpty()) {
-                log.info("Response body: {}", responseBody);
-            }
-
             log.info("Outgoing response: {} {}{} -> {} ({}ms)", method, uri,
                     queryString != null ? "?" + queryString : "", response.getStatus(), duration);
 
             wrappedResponse.copyBodyToResponse();
         } finally {
-            MDC.remove("traceId");
+            MDC.remove("correlation_id");
         }
     }
 }

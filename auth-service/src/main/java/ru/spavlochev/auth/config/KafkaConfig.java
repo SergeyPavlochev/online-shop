@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.ProducerFactory;
-import ru.spavlochev.snackbar.events.v1.EventEnvelope;
+import ru.spavlochev.onlineshop.events.v1.EventEnvelope;
 
 import java.util.HashMap;
 import java.util.Map;

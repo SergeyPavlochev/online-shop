@@ -17,7 +17,7 @@ public class CourierController implements CourierApi {
     private final CourierService courierService;
 
     @Override
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<CourierDto> createCourierProfile(CreateCourierRequestDto dto) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(courierService.create(dto.getName(), dto.getZone(), dto.getMaxOrdersSlot()));

@@ -5,8 +5,9 @@ metadata:
   namespace: app
 type: Opaque
 stringData:
-  keycloakAdminClientSecret: "6nVT3DyODGgjR60UNV6UmlwGTRWXw7F2"
-  keycloakAppClientSecret: "3GYX3yX0YA68hc10P20qphpf4hKwzPEH"
+  keycloakAdminClientSecret: "ByXx9kOZgpH8oCW5tiI8TQSAwuZWK7fd"
+  keycloakAppClientSecret: "ZrmRoYgrSwk5vNMfeIdbGgU7UTIYiNRz"
+  keycloakM2MClientSecret: "M2mXk9pQr7vNwZtYhJ4sLbEcFaDgUiWo"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -36,15 +37,14 @@ data:
   MANAGEMENT_METRICS_DISTRIBUTION_SLO_HTTP_SERVER_REQUESTS: "1ms, 2ms, 3ms, 4ms, 5ms, 6ms, 7ms, 8ms, 9ms, 10ms, 20ms, 50ms, 100ms, 150ms, 200ms, 500ms"
   MANAGEMENT_METRICS_TAGS_APPLICATION: "auth-service"
   KEYCLOAK_AUTH_SERVER_URL: "http://keycloak-keycloakx-http.keycloak.svc.cluster.local:80/auth"
-  KEYCLOAK_REALM: "snackbar"
-  KEYCLOAK_JWKS_URI: "http://keycloak-keycloakx-http.keycloak.svc.cluster.local:80/auth/realms/snackbar/protocol/openid-connect/certs"
-  KEYCLOAK_ADMIN_CLIENT_ID: "snackbar-admin"
-  KEYCLOAK_ADMIN_CLIENT_SECRET: "${KEYCLOAK_ADMIN_CLIENT_SECRET}"
-  KEYCLOAK_APP_CLIENT_ID: "snackbar-app"
-  KEYCLOAK_APP_CLIENT_SECRET: "${KEYCLOAK_APP_CLIENT_SECRET}"
+  KEYCLOAK_REALM: "onlineshop"
+  KEYCLOAK_JWKS_URI: "http://keycloak-keycloakx-http.keycloak.svc.cluster.local:80/auth/realms/onlineshop/protocol/openid-connect/certs"
+  KEYCLOAK_ADMIN_CLIENT_ID: "onlineshop-admin"
+  KEYCLOAK_APP_CLIENT_ID: "onlineshop-app"
+  KEYCLOAK_M2M_CLIENT_ID: "order-service-m2m"
   APP_KAFKA_TOPIC_OUTBOX: "users"
   APP_KAFKA_TOPIC_BATCH_SIZE: "50"
-  APP_OUTBOX_SCHEDULE_CRON: "*/10 * * * * *"
+  APP_OUTBOX_SCHEDULE_CRON: "*/1 * * * * *"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -55,7 +55,7 @@ metadata:
     app: auth-service
 spec:
   replicas: 1
-  minReadySeconds: 10
+  minReadySeconds: 15
   strategy:
     rollingUpdate:
       maxSurge: 1
@@ -79,12 +79,12 @@ spec:
             httpGet:
               path: /actuator/health/readiness
               port: 8081
-            periodSeconds: 10
+            periodSeconds: 15
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness
               port: 8081
-            initialDelaySeconds: 10
+            initialDelaySeconds: 15
             periodSeconds: 10
           resources:
             requests:
@@ -112,6 +112,11 @@ spec:
                 secretKeyRef:
                   name: auth-secrets
                   key: keycloakAppClientSecret
+            - name: KEYCLOAK_M2M_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: auth-secrets
+                  key: keycloakM2MClientSecret
 ---
 apiVersion: v1
 kind: Service
@@ -120,7 +125,7 @@ metadata:
   namespace: app
   labels:
     app: auth-service
-    efk: snackbar
+    efk: online-shop
 spec:
   selector:
     app: auth-service

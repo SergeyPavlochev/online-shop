@@ -19,7 +19,7 @@ public class ItemsController implements ItemsApi {
     private final ItemService itemService;
 
     @Override
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<ItemDto> createItem(CreateItemRequestDto dto) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(itemService.create(dto.getItemSku(), dto.getQuantity()));

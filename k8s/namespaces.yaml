@@ -3,7 +3,7 @@ kind: Namespace
 metadata:
   name: infra
   labels:
-    app.kubernetes.io/part-of: snackbar
+    app.kubernetes.io/part-of: onlineshop
     tier: infra
 ---
 apiVersion: v1
@@ -11,7 +11,7 @@ kind: Namespace
 metadata:
   name: logging
   labels:
-    app.kubernetes.io/part-of: snackbar
+    app.kubernetes.io/part-of: onlineshop
     tier: logging
 ---
 apiVersion: v1
@@ -19,7 +19,7 @@ kind: Namespace
 metadata:
   name: keycloak
   labels:
-    app.kubernetes.io/part-of: snackbar
+    app.kubernetes.io/part-of: onlineshop
     tier: keycloak
 ---
 apiVersion: v1
@@ -27,7 +27,7 @@ kind: Namespace
 metadata:
   name: app
   labels:
-    app.kubernetes.io/part-of: snackbar
+    app.kubernetes.io/part-of: onlineshop
     tier: app
 ---
 apiVersion: v1
@@ -35,5 +35,5 @@ kind: Namespace
 metadata:
   name: ingress
   labels:
-    app.kubernetes.io/part-of: snackbar
+    app.kubernetes.io/part-of: onlineshop
     tier: ingress

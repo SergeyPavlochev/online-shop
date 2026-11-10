@@ -23,8 +23,14 @@ data:
   MANAGEMENT_SERVER_PORT: "8081"
   MANAGEMENT_METRICS_DISTRIBUTION_SLO_HTTP_SERVER_REQUESTS: "1ms, 2ms, 3ms, 4ms, 5ms, 6ms, 7ms, 8ms, 9ms, 10ms, 20ms, 50ms, 100ms, 150ms, 200ms, 500ms"
   MANAGEMENT_METRICS_TAGS_APPLICATION: "delivery-service"
-  KEYCLOAK_ISSUER_URI: "http://keycloak-keycloakx-http.keycloak.svc.cluster.local:80/auth/realms/snackbar"
-  KEYCLOAK_JWK_SET_URI: "http://keycloak-keycloakx-http.keycloak.svc.cluster.local:80/auth/realms/snackbar/protocol/openid-connect/certs"
+  KEYCLOAK_ISSUER_URI: "http://keycloak-keycloakx-http.keycloak.svc.cluster.local:80/auth/realms/onlineshop"
+  KEYCLOAK_JWK_SET_URI: "http://keycloak-keycloakx-http.keycloak.svc.cluster.local:80/auth/realms/onlineshop/protocol/openid-connect/certs"
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: "kafka.infra.svc.cluster.local:9092"
+  SPRING_KAFKA_CONSUMER_GROUP_ID: "delivery-service-group"
+  APP_KAFKA_TOPIC_OUTBOX: "delivery"
+  APP_KAFKA_TOPIC_BATCH_SIZE: "50"
+  APP_OUTBOX_RETRY_DELAY_SECONDS: "30"
+  APP_OUTBOX_SCHEDULE_CRON: "*/1 * * * * *"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -35,7 +41,7 @@ metadata:
     app: delivery-service
 spec:
   replicas: 1
-  minReadySeconds: 10
+  minReadySeconds: 15
   strategy:
     rollingUpdate:
       maxSurge: 1
@@ -59,12 +65,12 @@ spec:
             httpGet:
               path: /actuator/health/readiness
               port: 8081
-            periodSeconds: 10
+            periodSeconds: 15
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness
               port: 8081
-            initialDelaySeconds: 10
+            initialDelaySeconds: 15
             periodSeconds: 10
           resources:
             requests:
@@ -90,7 +96,7 @@ metadata:
   namespace: app
   labels:
     app: delivery-service
-    efk: snackbar
+    efk: online-shop
 spec:
   selector:
     app: delivery-service

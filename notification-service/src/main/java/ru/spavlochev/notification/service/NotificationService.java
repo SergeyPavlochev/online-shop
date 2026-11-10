@@ -82,6 +82,117 @@ public class NotificationService {
         logNotificationCreated(notification);
     }
 
+    @Transactional
+    public void createOrderPickingStartedNotification(UUID userId, UUID orderId) {
+        log.info("Creating ORDER_PICKING_STARTED notification for userId={}, orderId={}", userId, orderId);
+
+        Notification notification = notificationRepository.save(Notification.builder()
+                .userId(userId)
+                .type(Notification.NotificationType.ORDER_PICKING_STARTED)
+                .orderId(orderId)
+                .amount("")
+                .message("Ваш заказ передан на склад для подбора")
+                .build());
+
+        logNotificationCreated(notification);
+    }
+
+    @Transactional
+    public void createOrderPickingCompletedNotification(UUID userId, UUID orderId, String trackingNumber) {
+        log.info("Creating ORDER_PICKING_COMPLETED notification for userId={}, orderId={}, tracking={}",
+                userId, orderId, trackingNumber);
+
+        Notification notification = notificationRepository.save(Notification.builder()
+                .userId(userId)
+                .type(Notification.NotificationType.ORDER_PICKING_COMPLETED)
+                .orderId(orderId)
+                .amount("")
+                .message("Товар собран на складе. Трек-номер: " + trackingNumber)
+                .build());
+
+        logNotificationCreated(notification);
+    }
+
+    @Transactional
+    public void createOrderPickingFailedNotification(UUID userId, UUID orderId, String reason) {
+        log.info("Creating ORDER_PICKING_FAILED notification for userId={}, orderId={}, reason={}",
+                userId, orderId, reason);
+
+        Notification notification = notificationRepository.save(Notification.builder()
+                .userId(userId)
+                .type(Notification.NotificationType.ORDER_PICKING_FAILED)
+                .orderId(orderId)
+                .amount("")
+                .message("Не удалось собрать заказ на складе. Причина: " + reason)
+                .build());
+
+        logNotificationCreated(notification);
+    }
+
+    @Transactional
+    public void createOrderDeliveryStartedNotification(UUID userId, UUID orderId, String trackingNumber) {
+        log.info("Creating ORDER_DELIVERY_STARTED notification for userId={}, orderId={}, tracking={}",
+                userId, orderId, trackingNumber);
+
+        Notification notification = notificationRepository.save(Notification.builder()
+                .userId(userId)
+                .type(Notification.NotificationType.ORDER_DELIVERY_STARTED)
+                .orderId(orderId)
+                .amount("")
+                .message("Заказ передан в доставку. Трек-номер: " + trackingNumber)
+                .build());
+
+        logNotificationCreated(notification);
+    }
+
+    @Transactional
+    public void createOrderDeliveredNotification(UUID userId, UUID orderId, String trackingNumber) {
+        log.info("Creating ORDER_DELIVERED notification for userId={}, orderId={}, tracking={}",
+                userId, orderId, trackingNumber);
+
+        Notification notification = notificationRepository.save(Notification.builder()
+                .userId(userId)
+                .type(Notification.NotificationType.ORDER_DELIVERED)
+                .orderId(orderId)
+                .amount("")
+                .message("Заказ успешно доставлен! Трек-номер: " + trackingNumber)
+                .build());
+
+        logNotificationCreated(notification);
+    }
+
+    @Transactional
+    public void createOrderDeliveryFailedNotification(UUID userId, UUID orderId, String reason) {
+        log.info("Creating ORDER_DELIVERY_FAILED notification for userId={}, orderId={}, reason={}",
+                userId, orderId, reason);
+
+        Notification notification = notificationRepository.save(Notification.builder()
+                .userId(userId)
+                .type(Notification.NotificationType.ORDER_DELIVERY_FAILED)
+                .orderId(orderId)
+                .amount("")
+                .message("Не удалось доставить заказ. Причина: " + reason)
+                .build());
+
+        logNotificationCreated(notification);
+    }
+
+    @Transactional
+    public void createOrderPaymentRefundedNotification(UUID userId, UUID orderId, String amount) {
+        log.info("Creating ORDER_PAYMENT_REFUNDED notification for userId={}, orderId={}, amount={}",
+                userId, orderId, amount);
+
+        Notification notification = notificationRepository.save(Notification.builder()
+                .userId(userId)
+                .type(Notification.NotificationType.ORDER_PAYMENT_REFUNDED)
+                .orderId(orderId)
+                .amount(amount)
+                .message("Денежные средства возвращены на счёт. Сумма: " + amount)
+                .build());
+
+        logNotificationCreated(notification);
+    }
+
     private void logNotificationCreated(Notification notification) {
         log.info("Notification created: id={}, userId={}, type={}",
                 notification.getId(), notification.getUserId(), notification.getType());

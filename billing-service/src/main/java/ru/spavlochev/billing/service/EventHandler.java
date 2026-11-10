@@ -6,7 +6,7 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 import ru.spavlochev.billing.entity.ProcessedEvent;
 import ru.spavlochev.billing.repository.ProcessedEventRepository;
-import ru.spavlochev.snackbar.events.v1.EventEnvelope;
+import ru.spavlochev.onlineshop.events.v1.EventEnvelope;
 
 import java.util.UUID;
 
@@ -46,19 +46,13 @@ public class EventHandler {
     private void processEventIdempotently(EventEnvelope envelope, Runnable action) {
         UUID eventId = UUID.fromString(envelope.getEventId());
 
-        // 1. Проверяем, не обработано ли уже событие
-        boolean eventWasProcessed = transactionExecutor.execInTransaction(() ->
-                processedEventRepository.existsByEventId(eventId));
-        if (eventWasProcessed) {
-            log.info("Event already processed, skipping: eventId={}, type={}",
-                    eventId, envelope.getEventType());
-            return;
-        }
-
-        // 2. Выполняем бизнес-логику и сохраняем eventId в одной транзакции
-        // Если бизнес-логика упадет — транзакция откатится, eventId не сохранится
-        // Если сохранение eventId упадет — откатится и бизнес-логика
         transactionExecutor.execInTransaction(() -> {
+            if (processedEventRepository.existsByEventId(eventId)) {
+                log.info("Event already processed, skipping: eventId={}, type={}",
+                        eventId, envelope.getEventType());
+                return;
+            }
+
             log.info("Processing event: eventId={}, type={}", eventId, envelope.getEventType());
             action.run();
             processedEventRepository.save(ProcessedEvent.builder()

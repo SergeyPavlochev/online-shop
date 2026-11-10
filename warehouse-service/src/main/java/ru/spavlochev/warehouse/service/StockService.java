@@ -22,12 +22,13 @@ public class StockService {
 
     @Transactional
     public void reserve(UUID orderId, String itemSku, int quantity) {
+        // Сначала получаем pessimistic lock на stock row, затем проверяем idempotency
+        Stock stock = stockRepository.findBySkuForUpdate(itemSku)
+                .orElseThrow(() -> new EntityNotFoundException("Item not found"));
+
         if (reservationRepository.existsByOrderId(orderId)) {
             return;
         }
-
-        Stock stock = stockRepository.findBySkuForUpdate(itemSku)
-                .orElseThrow(() -> new EntityNotFoundException("Item not found"));
 
         if (stock.getAvailableQuantity() < quantity) {
             throw new IllegalStateException("Insufficient stock");

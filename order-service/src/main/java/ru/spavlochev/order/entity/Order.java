@@ -49,6 +49,18 @@ public class Order {
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
+    @Column
+    @Setter
+    private LocalDateTime deliveredAt;
+
+    @Column
+    @Setter
+    private LocalDateTime cancelledAt;
+
+    @Column(length = 100)
+    @Setter
+    private String trackingNumber;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
@@ -56,7 +68,13 @@ public class Order {
 
     public enum OrderStatus {
         PENDING,
-        CONFIRMED,
+        PAYMENT_COMPLETED,
+        PICKING,
+        PICKING_FAILED,
+        READY_FOR_DELIVERY,
+        IN_DELIVERY,
+        DELIVERY_FAILED,
+        DELIVERED,
         CANCELLED
     }
 }

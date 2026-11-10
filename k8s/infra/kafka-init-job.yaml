@@ -19,10 +19,18 @@ spec:
               kafka-topics --bootstrap-server kafka.infra.svc.cluster.local:9092 --create --if-not-exists --topic orders \
                 --partitions 3 --replication-factor 1
               kafka-topics --bootstrap-server kafka.infra.svc.cluster.local:9092 --create --if-not-exists --topic payments \
-                --partitions 3 --replication-factor 1              
+                --partitions 3 --replication-factor 1
+              kafka-topics --bootstrap-server kafka.infra.svc.cluster.local:9092 --create --if-not-exists --topic warehouse \
+                --partitions 3 --replication-factor 1
+              kafka-topics --bootstrap-server kafka.infra.svc.cluster.local:9092 --create --if-not-exists --topic delivery \
+                --partitions 3 --replication-factor 1
               kafka-topics --bootstrap-server kafka.infra.svc.cluster.local:9092 --create --if-not-exists --topic users-dlt \
                 --config retention.ms=604800000 --partitions 3 --replication-factor 1
               kafka-topics --bootstrap-server kafka.infra.svc.cluster.local:9092 --create --if-not-exists --topic orders-dlt \
                 --config retention.ms=604800000 --partitions 3 --replication-factor 1
               kafka-topics --bootstrap-server kafka.infra.svc.cluster.local:9092 --create --if-not-exists --topic payments-dlt \
+                --config retention.ms=604800000 --partitions 3 --replication-factor 1
+              kafka-topics --bootstrap-server kafka.infra.svc.cluster.local:9092 --create --if-not-exists --topic warehouse-dlt \
+                --config retention.ms=604800000 --partitions 3 --replication-factor 1
+              kafka-topics --bootstrap-server kafka.infra.svc.cluster.local:9092 --create --if-not-exists --topic delivery-dlt \
                 --config retention.ms=604800000 --partitions 3 --replication-factor 1

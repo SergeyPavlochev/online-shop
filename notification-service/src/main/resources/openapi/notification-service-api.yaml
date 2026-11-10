@@ -87,7 +87,14 @@ components:
             - ORDER_FAILED
             - ORDER_CONFIRMED
             - ORDER_CANCELLED
-          description: Тип события по заказу пользователя - успешная оплата или ошибка
+            - ORDER_PICKING_STARTED
+            - ORDER_PICKING_COMPLETED
+            - ORDER_PICKING_FAILED
+            - ORDER_DELIVERY_STARTED
+            - ORDER_DELIVERED
+            - ORDER_DELIVERY_FAILED
+            - ORDER_PAYMENT_REFUNDED
+          description: Тип уведомления о событии заказа
           example: ORDER_PAID
         orderId:
           type: string

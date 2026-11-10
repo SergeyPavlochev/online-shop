@@ -21,7 +21,9 @@ public interface OutboxEventRepository extends JpaRepository<OutboxEvent, UUID> 
     @QueryHints(@QueryHint(name = AvailableSettings.JAKARTA_LOCK_TIMEOUT, value = "-2")) // -2 = SKIP LOCKED
     List<OutboxEvent> findByStatusOrderByCreatedAtAsc(OutboxEvent.OutboxStatus status, Pageable pageable);
 
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query("DELETE FROM OutboxEvent e WHERE e.status = 'PUBLISHED' AND e.publishedAt < :cutOffDateTime")
     int cleanupOldPublishedEvents(LocalDateTime cutOffDateTime);
+
+    List<OutboxEvent> findByStatusAndCreatedAtLessThan(OutboxEvent.OutboxStatus status, LocalDateTime cutOffDateTime);
 }
