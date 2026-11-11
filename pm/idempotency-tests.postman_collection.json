@@ -1,0 +1,609 @@
+{
+  "info": {
+    "_postman_id": "8f7a3c12-9d45-4b10-b8e2-6a39f15c4d71",
+    "name": "Идемпотентность создания заказа",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. РЕГИСТРАЦИЯ И ВХОД ПОЛЬЗОВАТЕЛЯ",
+      "item": [
+        {
+          "name": "1.1. Регистрация пользователя",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код статуса 201 — пользователь создан', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "var body = JSON.parse(pm.request.body.raw);",
+                  "pm.environment.set('testEmail', body.email);",
+                  "pm.environment.set('testPassword', body.password);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\",\n  \"firstName\": \"Тестовый\",\n  \"lastName\": \"Пользователь\",\n  \"phone\": \"+7900{{randomInt}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "1.2. Вход пользователя и получение JWT",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код статуса 200 — вход выполнен', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('В ответе присутствует jwt', function () {",
+                  "    pm.expect(jsonData).to.have.property('jwt');",
+                  "    pm.expect(jsonData.jwt).to.exist;",
+                  "    pm.environment.set('userToken', jsonData.jwt);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. БАЗОВАЯ ИДЕМПOTЕНТНОСТЬ",
+      "item": [
+        {
+          "name": "2.1. Создание заказа с ключом IDEMPOTENCY-TEST-001 (первый запрос)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код статуса 202 — заказ принят', function () {",
+                  "    pm.response.to.have.status(202);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('В ответе присутствует id заказа', function () {",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData.id).to.exist;",
+                  "});",
+                  "pm.test('Статус заказа PENDING', function () {",
+                  "    pm.expect(jsonData.status).to.eql('PENDING');",
+                  "});",
+                  "pm.environment.set('firstOrderId', jsonData.id);",
+                  "pm.environment.set('firstOrderStatus', jsonData.status);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "043d7a44-5f68-4f0f-9263-f285728ea6a7",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": \"3500\",\n  \"currency\": \"RUB\",\n  \"itemSku\": \"{{drillSku}}\",\n  \"quantity\": 1,\n  \"deliverySlot\": \"{{slotId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders/api/v1/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders", "api", "v1", "orders"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "2.2. Повторный запрос с тем же ключом IDEMPOTENCY-TEST-001",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код статуса 200 — возвращён существующий заказ', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Возвращён тот же идентификатор заказа', function () {",
+                  "    pm.expect(jsonData.id).to.eql(pm.environment.get('firstOrderId'));",
+                  "});",
+                  "pm.test('Статус заказа не изменился', function () {",
+                  "    pm.expect(jsonData.status).to.eql(pm.environment.get('firstOrderStatus'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "043d7a44-5f68-4f0f-9263-f285728ea6a7",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": \"3500\",\n  \"currency\": \"RUB\",\n  \"itemSku\": \"{{drillSku}}\",\n  \"quantity\": 1,\n  \"deliverySlot\": \"{{slotId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders/api/v1/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders", "api", "v1", "orders"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. ИДЕМПOTЕНТНОСТЬ С РАЗНЫМИ ТЕЛАМИ ЗАПРОСА",
+      "item": [
+        {
+          "name": "3.1. Создание заказа с ключом IDEMPOTENCY-TEST-002 (первый запрос)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код статуса 202 — заказ принят', function () {",
+                  "    pm.response.to.have.status(202);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('В ответе присутствует id заказа', function () {",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData.id).to.exist;",
+                  "});",
+                  "pm.test('Статус заказа PENDING', function () {",
+                  "    pm.expect(jsonData.status).to.eql('PENDING');",
+                  "});",
+                  "pm.environment.set('secondOrderId', jsonData.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "27beeefd-187a-41ec-9c08-2db23755db97",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": \"1000\",\n  \"currency\": \"RUB\",\n  \"itemSku\": \"{{hammerSku}}\",\n  \"quantity\": 1,\n  \"deliverySlot\": \"{{slotId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders/api/v1/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders", "api", "v1", "orders"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3.2. Повторный запрос с тем же ключом, но другим телом",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код статуса 200 — возвращён существующий заказ', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Возвращён тот же идентификатор заказа', function () {",
+                  "    pm.expect(jsonData.id).to.eql(pm.environment.get('secondOrderId'));",
+                  "});",
+                  "pm.test('Статус заказа не изменился', function () {",
+                  "    pm.expect(jsonData.status).to.eql('PENDING');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "27beeefd-187a-41ec-9c08-2db23755db97",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": \"9999\",\n  \"currency\": \"RUB\",\n  \"itemSku\": \"{{drillSku}}\",\n  \"quantity\": 5,\n  \"deliverySlot\": \"{{slotId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders/api/v1/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders", "api", "v1", "orders"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. РАЗНЫЕ КЛЮЧИ — РАЗНЫЕ ЗАКАЗЫ",
+      "item": [
+        {
+          "name": "4.1. Создание заказа с ключом IDEMPOTENCY-TEST-003",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код статуса 202 — заказ принят', function () {",
+                  "    pm.response.to.have.status(202);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('В ответе присутствует id заказа', function () {",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData.id).to.exist;",
+                  "});",
+                  "pm.environment.set('thirdOrderId', jsonData.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "9eea40c2-f9f7-46a5-86d5-66593eb9310a",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": \"3500\",\n  \"currency\": \"RUB\",\n  \"itemSku\": \"{{drillSku}}\",\n  \"quantity\": 1,\n  \"deliverySlot\": \"{{slotId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders/api/v1/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders", "api", "v1", "orders"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4.2. Создание заказа с ключом IDEMPOTENCY-TEST-004",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код статуса 202 — заказ принят', function () {",
+                  "    pm.response.to.have.status(202);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('В ответе присутствует id заказа', function () {",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData.id).to.exist;",
+                  "});",
+                  "pm.test('Идентификатор заказа отличается от IDEMPOTENCY-TEST-003', function () {",
+                  "    pm.expect(jsonData.id).to.not.eql(pm.environment.get('thirdOrderId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "dfad9469-85a4-4118-918b-200202d651a3",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": \"3500\",\n  \"currency\": \"RUB\",\n  \"itemSku\": \"{{drillSku}}\",\n  \"quantity\": 1,\n  \"deliverySlot\": \"{{slotId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders/api/v1/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders", "api", "v1", "orders"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "5. МНОГОКРАТНАЯ ПОВТОРНАЯ ОТПРАВКА (3+ раза)",
+      "item": [
+        {
+          "name": "5.1. Создание заказа с ключом IDEMPOTENCY-TEST-005 (запрос 1 из 3)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код статуса 202 — заказ принят', function () {",
+                  "    pm.response.to.have.status(202);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('В ответе присутствует id заказа', function () {",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData.id).to.exist;",
+                  "});",
+                  "pm.environment.set('multiOrderId', jsonData.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "cd5fd3f3-24b4-46d0-8edd-3abd9789cdde",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": \"3500\",\n  \"currency\": \"RUB\",\n  \"itemSku\": \"{{drillSku}}\",\n  \"quantity\": 1,\n  \"deliverySlot\": \"{{slotId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders/api/v1/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders", "api", "v1", "orders"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5.2. Повторный запрос (запрос 2 из 3)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код статуса 200 — возвращён существующий заказ', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Возвращён тот же идентификатор заказа', function () {",
+                  "    pm.expect(pm.response.json().id).to.eql(pm.environment.get('multiOrderId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "cd5fd3f3-24b4-46d0-8edd-3abd9789cdde",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": \"3500\",\n  \"currency\": \"RUB\",\n  \"itemSku\": \"{{drillSku}}\",\n  \"quantity\": 1,\n  \"deliverySlot\": \"{{slotId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders/api/v1/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders", "api", "v1", "orders"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5.3. Повторный запрос (запрос 3 из 3)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код статуса 200 — возвращён существующий заказ', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Возвращён тот же идентификатор заказа', function () {",
+                  "    pm.expect(pm.response.json().id).to.eql(pm.environment.get('multiOrderId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "cd5fd3f3-24b4-46d0-8edd-3abd9789cdde",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": \"3500\",\n  \"currency\": \"RUB\",\n  \"itemSku\": \"{{drillSku}}\",\n  \"quantity\": 1,\n  \"deliverySlot\": \"{{slotId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders/api/v1/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders", "api", "v1", "orders"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://arch.homework",
+      "type": "string"
+    },
+    {
+      "key": "testEmail",
+      "value": "test_user006@example.com",
+      "type": "string"
+    },
+    {
+      "key": "testPassword",
+      "value": "SuperSecret123!",
+      "type": "string"
+    },
+    {
+      "key": "drillSku",
+      "value": "a1b2c3d4-e5f6-7890-abcd-ef1234567803",
+      "type": "string"
+    },
+    {
+      "key": "hammerSku",
+      "value": "b2c3d4e5-f6a7-8901-bcde-f12345678992",
+      "type": "string"
+    },
+    {
+      "key": "slotId",
+      "value": "b2c3d4e5-f6a7-8901-bcde-f12345678992",
+      "type": "string"
+    }
+  ]
+}

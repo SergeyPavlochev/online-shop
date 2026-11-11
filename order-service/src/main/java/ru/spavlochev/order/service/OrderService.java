@@ -3,6 +3,7 @@ package ru.spavlochev.order.service;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.spavlochev.order.entity.IdempotencyKey;
@@ -26,29 +27,25 @@ public class OrderService {
     private final OrderSagaOrchestrator orderSagaOrchestrator;
 
     @Transactional
-    public OrderDto createOrderWithIdempotencyKey(UUID userId, CreateOrderRequestDto rqDto,
-                                                   String jwtToken, String idempotencyKey) {
+    public CreateOrderResult createOrderWithIdempotencyKey(UUID userId, CreateOrderRequestDto rqDto,
+                                                           String jwtToken, String idempotencyKey) {
         // Проверяем, не обработан ли уже этот ключ
         return idempotencyKeyRepository.findByKey(idempotencyKey)
                 .map(existingKey -> {
-                    // Ключ уже существует — возвращаем существующий заказ
-                    if (existingKey.getStatus() == IdempotencyKey.Status.COMPLETED) {
-                        Order order = orderRepository.findById(existingKey.getOrderId())
-                                .orElseThrow(() -> new EntityNotFoundException(
-                                        "Order not found for idempotency key: " + idempotencyKey));
-                        log.info("Idempotency key already completed, returning existing order: key={}, orderId={}",
-                                idempotencyKey, order.getId());
-                        return new OrderDto()
-                                .id(order.getId())
-                                .userId(order.getUserId())
-                                .amount(order.getAmount().toString())
-                                .currency(order.getCurrency())
-                                .status(OrderDto.StatusEnum.fromValue(order.getStatus().name()))
-                                .createdAt(order.getCreatedAt().atOffset(ZoneOffset.UTC));
-                    }
-                    // Ключ в PROCESSING — заказ ещё создаётся, возвращаем 202
-                    log.warn("Idempotency key already in PROCESSING state: key={}", idempotencyKey);
-                    throw new IllegalStateException("Order is already being processed for key: " + idempotencyKey);
+                    // Ключ уже существует — возвращаем существующий заказ со статусом 200
+                    Order order = orderRepository.findById(existingKey.getOrderId())
+                            .orElseThrow(() -> new EntityNotFoundException(
+                                    "Order not found for idempotency key: " + idempotencyKey));
+                    log.info("Idempotency key already completed, returning existing order: key={}, orderId={}",
+                            idempotencyKey, order.getId());
+                    OrderDto orderDto = new OrderDto()
+                            .id(order.getId())
+                            .userId(order.getUserId())
+                            .amount(order.getAmount().toString())
+                            .currency(order.getCurrency())
+                            .status(OrderDto.StatusEnum.fromValue(order.getStatus().name()))
+                            .createdAt(order.getCreatedAt().atOffset(ZoneOffset.UTC));
+                    return new CreateOrderResult(HttpStatus.OK, orderDto);
                 })
                 .orElseGet(() -> {
                     // Новый ключ — создаём заказ
@@ -71,13 +68,14 @@ public class OrderService {
                     log.info("Order created with idempotency key: key={}, orderId={}",
                             idempotencyKey, order.getId());
 
-                    return new OrderDto()
+                    OrderDto orderDto = new OrderDto()
                             .id(order.getId())
                             .userId(order.getUserId())
                             .amount(order.getAmount().toString())
                             .currency(order.getCurrency())
                             .status(OrderDto.StatusEnum.fromValue(order.getStatus().name()))
                             .createdAt(order.getCreatedAt().atOffset(ZoneOffset.UTC));
+                    return new CreateOrderResult(HttpStatus.ACCEPTED, orderDto);
                 });
     }
 

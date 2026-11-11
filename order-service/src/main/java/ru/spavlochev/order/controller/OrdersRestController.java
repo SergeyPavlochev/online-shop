@@ -27,10 +27,10 @@ public class OrdersRestController implements OrdersApi {
     public ResponseEntity<OrderDto> createOrder(UUID idempotencyKey, CreateOrderRequestDto createOrderRequestDto) {
         String userId = UserContext.getCurrentUserId();
         String jwtToken = UserContext.getJwt();
-        var order = orderService.createOrderWithIdempotencyKey(
+        var result = orderService.createOrderWithIdempotencyKey(
                 UUID.fromString(userId), createOrderRequestDto, jwtToken, idempotencyKey.toString());
-        return ResponseEntity.status(HttpStatus.ACCEPTED)
-                .body(order);
+        return ResponseEntity.status(result.status())
+                .body(result.order());
     }
 
     @Override

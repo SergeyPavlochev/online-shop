@@ -28,6 +28,12 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateOrderRequestDto'
       responses:
+        '200':
+          description: Заказ уже существует (идемпотентный запрос)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDto'
         '202':
           description: Заказ успешно создан, запущена Сага
           content:
