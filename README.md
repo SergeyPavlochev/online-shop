@@ -14,6 +14,8 @@
 - [4. Технологический стек](#4-технологический-стек)
   - [Схемы баз данных](#схемы-баз-данных)
 - [5. Аутентификация и авторизация](#5-аутентификация-и-авторизация)
+  - [Архитектурный компромисс и подход Zero Trust](#архитектурный-компромисс-и-подход-zero-trust)
+  - [Диаграммы сценариев аутентификации](#диаграммы-сценариев-аутентификации)
 - [6. Основной пользовательский сценарий](#6-основной-пользовательский-сценарий)
   - [6.1. Пользовательский поток](#61-пользовательский-поток)
   - [6.2. Диаграмма саги](#62-диаграмма-саги)
@@ -37,13 +39,19 @@
 
 ## 1. Общая информация
 
-**Online Shop** — это распределённая система электронной коммерции, спроектированная по принципам микросервисной архитектуры. Система позволяет пользователям регистрироваться, управлять платёжным балансом, оформлять заказы и отслеживать их выполнение на всех этапах — от оплаты до доставки.
+**Online Shop** — это распределённая система электронной коммерции, спроектированная по принципам микросервисной архитектуры. 
+Система позволяет пользователям регистрироваться, управлять платёжным балансом, оформлять заказы и отслеживать их 
+выполнение на всех этапах — от оплаты до доставки.
 
-Система построена вокруг **Domain-Driven Design (DDD)** подхода: каждый микросервис инкапсулирует отдельное бизнес-доменное понятие (аутентификация, платежи, склад, доставка, уведомления, управление заказами) и обладает собственным хранилищем данных. Взаимодействие между сервисами осуществляется асинхронно через Apache Kafka и синхронно через REST API.
+Система построена вокруг **Domain-Driven Design (DDD)** подхода: каждый микросервис инкапсулирует отдельное бизнес-доменное 
+понятие (аутентификация, платежи, склад, доставка, уведомления, управление заказами) и обладает собственным хранилищем данных. 
+Взаимодействие между сервисами осуществляется асинхронно через Apache Kafka и синхронно через REST API.
 
-Распределённые транзакции обеспечиваются паттерном **Saga** (оркестратор), который координирует последовательность локальных транзакций и выполняет компенсацию в случае ошибки.
+Распределённые транзакции обеспечиваются паттерном **Saga** (оркестратор), который координирует последовательность 
+локальных транзакций и выполняет компенсацию в случае ошибки.
 
-Развёртывание осуществляется в Kubernetes с использованием Helm-чартов, с инкапсуляцией инфраструктуры (Kafka, PostgreSQL), identity-провайдера (Keycloak), логирования (EFK) и мониторинга (Prometheus + Grafana).
+Развёртывание осуществляется в Kubernetes с использованием Helm-чартов, с инкапсуляцией инфраструктуры (Kafka, PostgreSQL), 
+identity-провайдера (Keycloak), логирования (EFK) и мониторинга (Prometheus + Grafana).
 
 **Ключевые потоки данных:**
 
@@ -90,13 +98,13 @@
 
 ### Паттерны наблюдаемости
 
-| Паттерн | Описание | Где применяется |
-|---|---|---|
-| **Structured Logging** | JSON-логирование через Logstash Logback Encoder для парсинга Fluent Bit | Все микросервисы |
+| Паттерн | Описание | Где применяется     |
+|---|---|---------------------|
+| **Structured Logging** | JSON-логирование через Logstash Logback Encoder для парсинга Fluent Bit | Все микросервисы    |
 | **EFK Stack** | Elasticsearch + Fluent Bit + Kibana для централизованного сбора и визуализации логов | Namespace `logging` |
-| **Prometheus Metrics** | Micrometer + `/actuator/prometheus` для сбора метрик (HTTP-запросы, бизнес-метрики) | Все микро��ервисы |
-| **ServiceMonitor** | Prometheus Operator CRD для автоматического discovery сервисов | Namespace `app` |
-| **Health Probes** | Spring Boot Actuator readiness/liveness probes для Kubernetes | Все микросервисы |
+| **Prometheus Metrics** | Micrometer + `/actuator/prometheus` для сбора метрик (HTTP-запросы, бизнес-метрики) | Все микросервисы    |
+| **ServiceMonitor** | Prometheus Operator CRD для автоматического discovery сервисов | Namespace `app`     |
+| **Health Probes** | Spring Boot Actuator readiness/liveness probes для Kubernetes | Все микросервисы    |
 
 ### Паттерны маршрутизации
 
@@ -117,7 +125,8 @@
 
 ## 3. Состав микросервисов
 
-Разбиение на сервисы выполнено согласно **Domain-Driven Design (DDD)** — каждый сервис покрывает отдельное поддоменное пространство.
+Разбиение на сервисы выполнено согласно **Domain-Driven Design (DDD)** — каждый сервис покрывает отдельное поддоменное 
+пространство.
 
 ### auth-service
 **Назначение:** Аутентификация, регистрация пользователей и интеграция с Keycloak.
@@ -180,7 +189,8 @@
 **Назначение:** Общие Protocol Buffers определения для кросс-сервисных событий.
 
 **Функционал:**
-- Единая схема `EventEnvelope` с типами событий (`UserRegistered`, `OrderCreated`, `OrderPaymentCompleted`, `OrderPickingStarted`, `OrderDelivered` и др.)
+- Единая схема `EventEnvelope` с типами событий (`UserRegistered`, `OrderCreated`, `OrderPaymentCompleted`, 
+`OrderPickingStarted`, `OrderDelivered` и др.)
 - Генерация Java-классов из `.proto` через OpenAPI Generator
 
 ---
@@ -269,7 +279,7 @@
 
 - `order-service` использует OAuth2 `client_credentials` grant для получения токенов от Keycloak
 - Scope: `internal:compensate` — для компенсационных операций саги
-- Отдельные WebClient-бэны (`m2m*WebClient`) передают JWT при вызовах billing/warehouse/delivery
+- Отдельные WebClient-бины (`m2m*WebClient`) передают JWT при вызовах billing/warehouse/delivery
 
 ### Клиенты Keycloak
 
@@ -278,6 +288,159 @@
 | `keycloak-admin-client` | Административные операции в Keycloak (auth-service) |
 | `keycloak-app-client` | Пользовательская аутентификация (Login, Register) |
 | `order-service-m2m` | Межсервисная аутентификация для сага-оркестрации |
+
+### Архитектурный компромисс и подход Zero Trust
+
+**Идеальная модель (OIDC Authorization Code Flow with PKCE).**
+
+В production-системах регистрация и аутентификация пользователя реализуются напрямую на стороне фронтенда через 
+**OpenID Connect (OIDC) Authorization Code Flow с PKCE** (Proof Key for Code Exchange). В этой модели:
+
+- Фронтенд (SPA / mobile-приложение) взаимодействует с Keycloak напрямую — без участия бэкенд-сервисов
+- Пользователь вводит учётные данные в интерфейсе Keycloak (hosted login page), и пароль **никогда не передаётся на бэкенд**
+- PKCE защищает flow от interception-атак через генерацию `code_verifier` / `code_challenge` на стороне фронтенда
+- Фронтенд получает `authorization code` → обменивает его на `access_token` + `id_token` напрямую от Keycloak
+- Бэкенд получает только JWT-токен в заголовке `Authorization: Bearer` — без какого-либо доступа к учётным данным пользователя
+
+**Текущая реализация — компромиссное решение.**
+
+В данном проекте регистрация (`POST /auth/register`) и аутентификация (`POST /auth/login`) реализованы через `auth-service` 
+на бэкенде. Это означает, что пользовательский пароль передаётся по сети на бэкенд-сервис, который затем создаёт/валидирует 
+учётную запись в Keycloak.
+
+Этот подход имеет следующие недостатки:
+
+| Аспект | Идеальная модель (PKCE) | Текущая реализация |
+|---|---|---|
+| Передача пароля | Никогда не покидает браузер | Передаётся на бэкенд (`auth-service`) |
+| Зона уязвимости | Только Keycloak | `auth-service` + Keycloak |
+| Surface attack | Минимальная (OIDC standard) | Расширенная (custom login endpoint) |
+| Compliance | PCI DSS / OWASP aligned | Требует дополнительных мер защиты |
+
+**Обоснование компромисса.**
+
+Такой подход выбран для упрощения разработки и обучения: `auth-service` инкапсулирует логику создания пользователей в 
+Keycloak, управления клиентами и ролями, что позволяет фронтенду не реализовывать OIDC flow самостоятельно. 
+В production рекомендуется мигрировать на Authorization Code Flow with PKCE.
+
+**Zero Trust Architecture.**
+
+Несмотря на архитектурный компромисс, система реализует принципы **Zero Trust** (нулевого доверия):
+
+- **Никому не доверяй, всегда проверяй** — каждый запрос, независимо от источника, проходит валидацию токена
+- **Forward-Auth middleware** — Traefik перенаправляет каждый запрос на `/validate` в `auth-service` до того, как он достигнет целевого сервиса
+- **Минимальные привилегии** — JWT содержит только необходимые realm/client roles; M2M-токены ограничены scope `internal:compensate`
+- **Изоляция сервисов** — каждый сервис валидирует токен независимо через Spring Security; отказ одного компонента не отменяет проверку в других
+- **Микросегментация** — M2M-авторизация использует отдельные client-конфигурации Keycloak, изолируя service-to-service трафик от пользовательского
+
+```mermaid
+graph LR
+    subgraph "Zero Trust — каждый запрос проверяется"
+        A[Запрос] --> B{Traefik<br/>Forward-Auth}
+        B -->|fail| C[401 Unauthorized]
+        B -->|pass| D[Целевой сервис]
+        D --> E{Spring Security<br/>JWT validation}
+        E -->|fail| C
+        E -->|pass| F[Authorization check<br/>roles / scopes]
+        F -->|fail| C
+        F -->|pass| G[Business logic]
+    end
+```
+
+### Диаграммы сценариев аутентификации
+
+#### 1. Пользовательская операция — синхронные вызовы с JWT
+
+Пользователь выполняет запрос (например, создание заказа). Запрос проходит через Traefik → Forward-Auth валидация JWT → 
+целевой сервис. Целевой сервис обрабатывает запрос от имени пользователя.
+
+```mermaid
+sequenceDiagram
+    participant U as User (Browser)
+    participant T as Traefik
+    participant A as auth-service
+    participant K as Keycloak
+    participant O as order-service
+    participant B as billing-service
+    participant W as warehouse-service
+
+    U->>T: POST /orders {orderItems}
+    Note over U,T: Authorization: Bearer <user_jwt>
+
+    T->>A: GET /validate (forward-auth)
+    A->>K: Verify JWT
+    K-->>A: Valid + roles
+    A-->>T: 200 OK (forward)
+
+    T->>O: POST /orders (createOrder)
+    Note over T,O: Authorization: Bearer <user_jwt>
+
+    O->>O: Extract user identity from JWT
+    O->>B: POST /payments/reserve
+    Note over B: Authorization: Bearer <user_jwt>
+    B->>B: Validate JWT, check balance
+    B-->>O: 200 Reserved
+
+    O->>W: POST /warehouse/reserve
+    Note over W: Authorization: Bearer <user_jwt>
+    W->>W: Validate JWT, reserve stock
+    W-->>O: 200 Reserved
+
+    O->>O: Update status: CONFIRMED
+    O-->>U: 202 Accepted {orderId, status}
+```
+
+**Ключевые моменты:**
+- Пользовательский JWT передаётся на каждом шаге синхронного вызова
+- Каждый сервис валидирует токен через Spring Security (`@EnableMethodSecurity`)
+- Forward-Auth middleware Traefik предварительно проверяет токен перед маршрутизацией
+- Все сервисы вызывают `JwtAuthConverter` для извлечения realm/client ролей
+
+---
+
+#### 2. Асинхронная обработка — M2M токен для компенсационных вызовов
+
+Сервис обрабатывает событие из Kafka и выполняет компенсационные вызовы других сервисов, используя M2M-токен (OAuth2 `client_credentials`).
+
+```mermaid
+sequenceDiagram
+    participant K as Kafka
+    participant O as order-service
+    participant Kc as Keycloak
+    participant B as billing-service
+    participant N as notification-service
+
+    Note over K,N: === Событие: OrderPickingFailed (Kafka) ===
+
+    K->>O: consume OrderPickingFailed
+    O->>O: Status: COMPENSATING
+
+    O->>Kc: POST /realms/onlineshop/protocol/openid-connect/token
+    Note over Kc: grant_type=client_credentials<br/>client_id=order-service-m2m
+    Kc-->>O: access_token {M2M_jwt, scope: internal:compensate}
+
+    O->>B: POST /payments/refund
+    Note over O,B: Authorization: Bearer <m2m_jwt><br/>scope: internal:compensate
+    B->>B: Validate M2M JWT, verify scope
+    B->>B: Refund user balance
+    B-->>O: 200 Refunded
+
+    O->>O: Status: CANCELLED
+
+    O->>K: publish OrderPaymentRefunded
+    Note over K: Event: {eventType: ORDER_PAYMENT_REFUNDED,<br/>userId, amount}
+
+    K->>N: consume OrderPaymentRefunded
+    N->>N: Create notification (idempotent)
+```
+
+**Ключевые моменты:**
+- `order-service` получает M2M-токен через OAuth2 `client_credentials` от Keycloak
+- Scope `internal:compensate` ограничивает использование токена только компенсационными операциями
+- M2M-токен передаётся только при service-to-service вызовах (не от пользователя)
+- Каждый целевой сервис валидирует M2M JWT и проверяет scope `internal:compensate`
+- События из Kafka обрабатываются асинхронно через `@KafkaListener`
+- `notification-service` обрабатывает события без JWT — это внутренний event-driven поток
 
 ---
 
@@ -464,7 +627,8 @@ stateDiagram-v2
 
 ### Postman Collection
 
-Тестовый сценарий описан в файле [`pm/onlineshop_saga.postman_collection.json`](pm/onlineshop_saga.postman_collection.json) и покрывает полный жизненный цикл заказа — от регистрации пользователя до доставки и отмены.
+Тестовый сценарий описан в файле [`pm/onlineshop_saga.postman_collection.json`](pm/onlineshop_saga.postman_collection.json) 
+и покрывает полный жизненный цикл заказа — от регистрации пользователя до доставки и отмены.
 
 ### Структура тестов
 
