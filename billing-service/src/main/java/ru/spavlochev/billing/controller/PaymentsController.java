@@ -27,8 +27,7 @@ public class PaymentsController implements PaymentsApi {
     @Override
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<PaymentReserveResponseDto> reserve(PaymentReserveRequestDto dto) {
-        String userId = UserContext.getCurrentUserId();
-        paymentsService.reserve(UUID.fromString(userId), dto.getOrderId(), dto.getAmount(), dto.getCurrency());
+        paymentsService.reserve(dto.getUserId(), dto.getOrderId(), dto.getAmount(), dto.getCurrency());
         return ResponseEntity.ok(new PaymentReserveResponseDto("reserved"));
     }
 

@@ -30,7 +30,6 @@ import ru.spavlochev.order.repository.OrderRepository;
 import ru.spavlochev.order.repository.OrderSagaStateRepository;
 import ru.spavlochev.order.repository.ProcessedEventRepository;
 
-import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -60,27 +59,34 @@ public class OrderSagaOrchestrator {
 
     // ==================== INITIALIZATION ====================
 
-    @Transactional
-    public Order startOrderSaga(UUID userId, BigDecimal amount, String currency,
-                                String itemSku, int quantity, String deliverySlotId, String jwtToken) {
-        Order order = orderRepository.save(Order.builder()
-                .userId(userId)
-                .amount(amount)
-                .currency(currency)
-                .status(Order.OrderStatus.PENDING)
-                .build());
+    /**
+     * Запускает сагу для уже созданного заказа (из Outbox).
+     * Используется M2M авторизация вместо JWT.
+     */
+    public void resumeOrderSaga(UUID orderId, String itemSku, int quantity, String deliverySlot) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new EntityNotFoundException("Order not found: " + orderId));
 
-        OrderSagaState state = sagaStateRepository.save(OrderSagaState.builder()
-                .orderId(order.getId())
-                .status(SagaStatus.STARTED)
-                .build());
+        // Проверяем, что статус PENDING (сага ещё не началась)
+        if (order.getStatus() != Order.OrderStatus.PENDING) {
+            log.warn("Order {} already has status {}, skipping saga resume",
+                    orderId, order.getStatus());
+            return;
+        }
 
-        log.info("Order created: orderId={}, userId={}", order.getId(), userId);
+        // Получаем или создаём saga state
+        OrderSagaState state = sagaStateRepository.findById(orderId)
+                .orElseGet(() -> sagaStateRepository.save(OrderSagaState.builder()
+                        .orderId(orderId)
+                        .status(SagaStatus.STARTED)
+                        .build()));
 
-        executeSagaSteps(state, itemSku, quantity, deliverySlotId, jwtToken)
+        // Запускаем сагу с M2M авторизацией
+        String m2mToken = m2mTokenService.getToken();
+        executeSagaSteps(state, itemSku, quantity, deliverySlot, m2mToken)
                 .subscribe();
 
-        return order;
+        log.info("Saga resumed from outbox: orderId={}", orderId);
     }
 
     private Mono<Void> executeSagaSteps(

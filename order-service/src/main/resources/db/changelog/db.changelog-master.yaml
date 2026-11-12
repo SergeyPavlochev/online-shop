@@ -13,3 +13,5 @@ databaseChangeLog:
       file: db/changelog/scripts/add-missing-outbox-columns.sql
   - include:
       file: db/changelog/scripts/add-version-to-order-saga-states.sql
+  - include:
+      file: db/changelog/scripts/add-idempotency-user-id-and-response.sql
