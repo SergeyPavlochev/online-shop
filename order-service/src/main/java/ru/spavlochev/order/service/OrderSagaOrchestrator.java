@@ -63,35 +63,34 @@ public class OrderSagaOrchestrator {
      * Запускает сагу для уже созданного заказа (из Outbox).
      * Используется M2M авторизация вместо JWT.
      */
-    public void resumeOrderSaga(UUID orderId, String itemSku, int quantity, String deliverySlot) {
+    public void beginOrderSaga(OrderSagaState orderSagaState) {
+        UUID orderId = orderSagaState.getOrderId();
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new EntityNotFoundException("Order not found: " + orderId));
 
         // Проверяем, что статус PENDING (сага ещё не началась)
         if (order.getStatus() != Order.OrderStatus.PENDING) {
-            log.warn("Order {} already has status {}, skipping saga resume",
+            log.warn("Order {} already has status {}, skipping saga start",
                     orderId, order.getStatus());
             return;
         }
 
-        // Получаем или создаём saga state
-        OrderSagaState state = sagaStateRepository.findById(orderId)
-                .orElseGet(() -> sagaStateRepository.save(OrderSagaState.builder()
-                        .orderId(orderId)
-                        .status(SagaStatus.STARTED)
-                        .build()));
-
         // Запускаем сагу с M2M авторизацией
         String m2mToken = m2mTokenService.getToken();
-        executeSagaSteps(state, itemSku, quantity, deliverySlot, m2mToken)
+        executeSagaSteps(orderSagaState, order, m2mToken)
                 .subscribe();
 
-        log.info("Saga resumed from outbox: orderId={}", orderId);
+        log.info("Saga started: orderId={}", orderId);
     }
 
     private Mono<Void> executeSagaSteps(
-            OrderSagaState state, String itemSku, int quantity, String deliverySlot, String jwtToken) {
-        return reservePayment(state, jwtToken)
+            OrderSagaState state, Order order, String jwtToken) {
+        var itemSku = order.getItemSku().toString();
+        var quantity = order.getQuantity();
+        var deliverySlot = order.getDeliverySlot().toString();
+
+        return Mono.empty()
+                .then(reservePayment(state, jwtToken))
                 .then(Mono.fromRunnable(() -> updateSagaState(state, SagaStatus.PAYMENT_RESERVED)))
                 .then(reserveStock(state, itemSku, quantity, jwtToken))
                 .then(Mono.fromRunnable(() -> updateSagaState(state, SagaStatus.STOCK_RESERVED)))

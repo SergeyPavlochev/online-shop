@@ -41,6 +41,16 @@ public class Order {
     @Column(nullable = false, length = 3)
     private String currency;
 
+    @Column(nullable = false)
+    private UUID itemSku;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer quantity = 1;
+
+    @Column(nullable = false)
+    private UUID deliverySlot;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Setter

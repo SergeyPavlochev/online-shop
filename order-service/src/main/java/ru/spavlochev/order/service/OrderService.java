@@ -8,10 +8,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.spavlochev.order.entity.IdempotencyKey;
 import ru.spavlochev.order.entity.Order;
+import ru.spavlochev.order.entity.OrderSagaState;
 import ru.spavlochev.order.openapi.dto.CreateOrderRequestDto;
 import ru.spavlochev.order.openapi.dto.OrderDto;
 import ru.spavlochev.order.repository.IdempotencyKeyRepository;
 import ru.spavlochev.order.repository.OrderRepository;
+import ru.spavlochev.order.repository.OrderSagaStateRepository;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -28,6 +30,7 @@ public class OrderService {
     private final IdempotencyKeyRepository idempotencyKeyRepository;
     private final OutboxService outboxService;
     private final OrderSagaOrchestrator orderSagaOrchestrator;
+    private final OrderSagaStateRepository sagaStateRepository;
 
     @Transactional
     public CreateOrderResult createOrder(UUID userId, CreateOrderRequestDto rqDto, UUID idempotencyKey) {
@@ -64,7 +67,7 @@ public class OrderService {
                 return new CreateOrderResult(HttpStatus.ACCEPTED, buildOrderDto(pendingOrder));
 
             case SUCCESS:
-                // Предыдущий запрос завершён — возвращаем кэшированный ответ
+                // Предыдущий запрос завершён — возвращаем кэшированный ответ и статус 200 OK
                 if (idempotencyKeyEntity.getResponseBody() != null) {
                     log.info("Idempotency key SUCCESS, returning cached response: key={}", idempotencyKey);
                     return new CreateOrderResult(
@@ -95,10 +98,29 @@ public class OrderService {
                 .userId(userId)
                 .amount(new BigDecimal(rqDto.getAmount()))
                 .currency(rqDto.getCurrency())
+                .itemSku(rqDto.getItemSku())
+                .quantity(rqDto.getQuantity())
+                .deliverySlot(rqDto.getDeliverySlot())
                 .status(Order.OrderStatus.PENDING)
                 .build());
 
-        // Сохраняем событие в Outbox (та же транзакция)
+        // Обновляем ключ на SUCCESS
+        var idempotencyKeyEntity = idempotencyKeyRepository.findByKey(idempotencyKey)
+                .orElseThrow();
+        idempotencyKeyEntity.setOrderId(order.getId());
+        idempotencyKeyEntity.setStatus(IdempotencyKey.Status.SUCCESS);
+        OrderDto cachedDto = buildOrderDto(order);
+        idempotencyKeyEntity.setResponseBody(dtoToMap(cachedDto));
+        idempotencyKeyEntity.setResponseStatusCode(HttpStatus.ACCEPTED.value());
+        idempotencyKeyRepository.save(idempotencyKeyEntity);
+
+        // Создаём строку состояния саги со статусом готовности к выполнению
+        sagaStateRepository.save(OrderSagaState.builder()
+                .orderId(order.getId())
+                .status(OrderSagaState.SagaStatus.READY_TO_START)
+                .build());
+
+        // Сохраняем событие в Outbox
         outboxService.saveEvent("OrderCreated", order.getId(), "Order",
                 Map.of(
                         "orderId", order.getId().toString(),
@@ -110,18 +132,7 @@ public class OrderService {
                         "deliverySlot", rqDto.getDeliverySlot().toString()
                 ));
 
-        // Обновляем ключ на SUCCESS
-        var idempotencyKeyEntity = idempotencyKeyRepository.findByKey(idempotencyKey)
-                .orElseThrow();
-        idempotencyKeyEntity.setOrderId(order.getId());
-        idempotencyKeyEntity.setStatus(IdempotencyKey.Status.SUCCESS);
-        idempotencyKeyEntity.setOrderId(order.getId());
-        OrderDto cachedDto = buildOrderDto(order);
-        idempotencyKeyEntity.setResponseBody(dtoToMap(cachedDto));
-        idempotencyKeyEntity.setResponseStatusCode(HttpStatus.ACCEPTED.value());
-        idempotencyKeyRepository.save(idempotencyKeyEntity);
-
-        log.info("Order created with idempotency idempotencyKeyEntity: idempotencyKeyEntity={}, orderId={}",
+        log.info("Order created with idempotency idempotencyKey: idempotencyKey={}, orderId={}",
                 idempotencyKey, order.getId());
 
         return new CreateOrderResult(HttpStatus.ACCEPTED, cachedDto);

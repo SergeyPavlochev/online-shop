@@ -74,14 +74,14 @@ public class OrderSagaState {
 
     @PrePersist
     void onCreate() {
-        startedAt = LocalDateTime.now();
-        updatedAt = startedAt;
+        updatedAt = LocalDateTime.now();
     }
 
     @PreUpdate
     void onUpdate() { updatedAt = LocalDateTime.now(); }
 
     public enum SagaStatus {
+        READY_TO_START,
         STARTED,
         PAYMENT_RESERVED,
         STOCK_RESERVED,

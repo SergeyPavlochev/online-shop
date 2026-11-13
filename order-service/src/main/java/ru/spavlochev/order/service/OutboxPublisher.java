@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import ru.spavlochev.onlineshop.events.v1.EventEnvelope;
 import ru.spavlochev.onlineshop.events.v1.Money;
 import ru.spavlochev.onlineshop.events.v1.OrderCancelledEvent;
+import ru.spavlochev.onlineshop.events.v1.OrderCreatedEvent;
 import ru.spavlochev.onlineshop.events.v1.OrderDeliveredEvent;
 import ru.spavlochev.onlineshop.events.v1.OrderPaymentCompletedEvent;
 import ru.spavlochev.order.entity.OutboxEvent;
@@ -22,7 +23,6 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -33,14 +33,11 @@ public class OutboxPublisher {
     private String outboxTopic;
     @Value("${app.kafka.topic.batch-size:50}")
     private int kafkaBatchSize;
-    @Value("${app.outbox.schedule-cron:*/1 * * * * *}")
-    private String scheduleCron;
     @Value("${app.outbox.retry-delay-seconds:30}")
     private int retryDelaySeconds;
 
     private final OutboxEventRepository outboxRepository;
     private final KafkaTemplate<String, EventEnvelope> kafkaTemplate;
-    private final OrderSagaOrchestrator orderSagaOrchestrator;
 
     @Scheduled(cron = "${app.outbox.schedule-cron:*/1 * * * * *}")
     @Transactional
@@ -55,13 +52,8 @@ public class OutboxPublisher {
 
         for (OutboxEvent event : events) {
             try {
-                if ("OrderCreated".equals(event.getEventType())) {
-                    triggerSagaFromOutbox(event);
-                    markAsPublished(event);
-                } else {
-                    publishEvent(event);
-                    markAsPublished(event);
-                }
+                publishEvent(event);
+                markAsPublished(event);
             } catch (Exception e) {
                 log.error("Failed to publish outbox event: eventId={}, type={}",
                         event.getEventId(), event.getEventType(), e);
@@ -153,6 +145,15 @@ public class OutboxPublisher {
                     .setUserId((String) p.get("userId"))
                     .setTrackingNumber((String) p.get("trackingNumber"))
                     .build());
+        } else if ("OrderCreated".equals(event.getEventType())) {
+            builder.setOrderCreated(OrderCreatedEvent.newBuilder()
+                    .setOrderId((String) p.get("orderId"))
+                    .setUserId((String) p.get("userId"))
+                    .setAmount(Money.newBuilder()
+                            .setAmount((String) p.get("amount"))
+                            .setCurrency((String) p.get("currency"))
+                            .build())
+                    .build());
         }
 
         return builder.build();
@@ -168,21 +169,5 @@ public class OutboxPublisher {
         event.setStatus(OutboxEvent.OutboxStatus.FAILED);
         event.setErrorMessage(errorMessage);
         outboxRepository.save(event);
-    }
-
-    /**
-     * Запускает сагу для заказа, созданного через Outbox.
-     * Вызывается из publishPendingEvents() при обработке события OrderCreated.
-     */
-    private void triggerSagaFromOutbox(OutboxEvent event) {
-        Map<String, Object> payload = event.getPayload();
-        UUID orderId = UUID.fromString((String) payload.get("orderId"));
-        String itemSku = (String) payload.get("itemSku");
-        int quantity = Integer.parseInt((String) payload.get("quantity"));
-        String deliverySlot = (String) payload.get("deliverySlot");
-
-        log.info("Triggering saga from outbox: orderId={}, eventTypeId={}", orderId, event.getEventId());
-
-        orderSagaOrchestrator.resumeOrderSaga(orderId, itemSku, quantity, deliverySlot);
     }
 }

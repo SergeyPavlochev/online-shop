@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import ru.spavlochev.order.config.UserContext;
+import ru.spavlochev.order.openapi.api.OrdersApi;
 import ru.spavlochev.order.openapi.dto.CreateOrderRequestDto;
 import ru.spavlochev.order.openapi.dto.OrderDto;
 import ru.spavlochev.order.service.CreateOrderResult;
@@ -17,7 +18,7 @@ import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
-public class OrdersRestController implements ru.spavlochev.order.openapi.api.OrdersApi {
+public class OrdersRestController implements OrdersApi {
 
     private final OrderService orderService;
 
